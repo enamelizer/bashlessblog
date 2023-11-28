@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34309.116
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bashlessblog", "bashlessblog.csproj", "{BFA6B5D3-3F66-45DF-AC3C-561B22D4133E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BFA6B5D3-3F66-45DF-AC3C-561B22D4133E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BFA6B5D3-3F66-45DF-AC3C-561B22D4133E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BFA6B5D3-3F66-45DF-AC3C-561B22D4133E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BFA6B5D3-3F66-45DF-AC3C-561B22D4133E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DDACD4B9-C40E-4ABF-B478-45046FAA1F07}
+	EndGlobalSection
+EndGlobal

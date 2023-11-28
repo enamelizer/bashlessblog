@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+bashblog-master
+test-blog
+Properties/launchSettings.json
