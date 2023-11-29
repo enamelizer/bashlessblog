@@ -4,7 +4,7 @@ namespace bashlessblog
 {
     internal class Config
     {
-        public string GlobalSoftwareName { get; private set; } = "BashlessBlog";
+        public string GlobalSoftwareName { get; private set; } = "bashlessblog";
         public string GlobalSoftwareVersion { get; private set; } = "0.1";
 
         // blog title
@@ -97,7 +97,7 @@ namespace bashlessblog
         // "Back to the index page" (used on archive page, it is link to blog index)
         public string TemplateArchiveIndexPage { get; private set; } = "Back to the index page";
         // "Subscribe" (used on bottom of index page, it is link to RSS feed)
-        public string TemplateSubscribe { get; private set; } = "rss";
+        public string TemplateSubscribe { get; private set; } = "Subscribe";
         // "Subscribe to this page..." (used as text for browser feed button that is embedded to html)
         public string TemplateSubscribeBrowserButton { get; private set; } = "Subscribe to this page...";
 
@@ -117,7 +117,7 @@ namespace bashlessblog
         // same as global_url by default
         // You can change it to path on your computer, if you write posts locally
         // before copying them to the server
-        public string PreviewUrl { get; private set; } = "";
+        public string PreviewUrl { get; private set; } = String.Empty;
 
         /// <summary>
         /// Loads a custom configuration by looking up properties via reflection

@@ -10,7 +10,7 @@ try
     if (!File.Exists(configFile))
     {
         Console.WriteLine(".config does not exist at " + currentWorkingDir);
-        Console.WriteLine("Please set the working directory to a valid BashlessBlog directory");
+        Console.WriteLine("Please set the working directory to a valid bashlessblog directory");
         return;
     }
 
@@ -46,28 +46,38 @@ try
     // do the things
     if (firstArg == "new")              // new
     {
-        // get the optional title for the new draft
-        bool useHtml = false;
-        var title = String.Empty;
-        if (args.Length == 2)
-        {
-            if (args[1] == "-html")
-                useHtml = true;
-            else
-                title = args[1];
-        }
-        else if (args.Length == 3)
-        {
-            if (args[1] == "-html")
-                useHtml = true;
-            
-            title = args[2];
-        }
+        // creates a draft file using the optional title
+        // in the format specified
+        // the first half of write_entry up until the editor opens
 
-        Functions.CreateNewDraft(currentWorkingDir, useHtml, title);
+        doNew(currentWorkingDir);
     }
     else if (firstArg == "post")        // post
     {
+        // post a draft or edited post to the blog
+        // the second half of write_entry
+        // TODO preview?
+
+        var postPath = String.Empty;
+        if (args.Length == 2)
+        {
+            postPath = Path.GetFullPath(args[1]);
+        }
+        else
+        {
+            printHelp();
+            return;
+        }
+
+        if (!File.Exists(postPath))
+        {
+            printHelp();
+            return;
+        }
+
+        var content = Functions.GetHtmlContent(postPath, true);
+
+        Functions.CreateHtmlPage(content, currentWorkingDir);
 
     }
     else if (firstArg == "rebuild")
@@ -101,6 +111,41 @@ catch (Exception e)
     Console.WriteLine(e.Message);
 }
 
+void doNew(string workingDir)
+{
+    // get the optional title for the new draft
+    bool useHtml = false;
+    var title = String.Empty;
+    if (args.Length == 2)       // could either be the -html option or the title
+    {
+        if (args[1] == "-html")
+            useHtml = true;
+        else
+            title = args[1];
+    }
+    else if (args.Length == 3)  // if there are 3 args, expect -html and title
+    {
+        if (args[1] != "-html")
+        {
+            printHelp();
+            return;
+        }
+
+        useHtml = true;
+        title = args[2];
+    }
+    else
+    {
+        printHelp();
+        return;
+    }
+
+    var draftPath = Functions.CreateNewDraft(workingDir, useHtml, title);
+    var relPath = Path.GetRelativePath(workingDir, draftPath);
+
+    Console.WriteLine(String.Format("Draft written to {0} - use 'bashlessblog post' to publish the post after editing", relPath));
+}
+
 void printHelp()
 {
     var headerString = String.Format("{0} version {1}", Functions.Config.GlobalSoftwareName, Functions.Config.GlobalSoftwareVersion);
@@ -109,13 +154,20 @@ void printHelp()
 Commands:
     new [-html] [title]     create a new draft in the drafts folder, using markdown
                             '-html' overrides the default behavior and creates an HTML draft
-                            'title' will override the default title with the supplied title
-    post [filename]         posts a draft or a previously posted entry
+                            'title' will override the default title with the supplied title, the title must be in quotes
+
+    edit [filename]         create a draft from a previously posted post
+
+    post [filename]         publishes a draft from the drafts folder
                             if the title of a previously posted entry changes, the filename will change to match
                             this operation rebuilds the blog
+
     delete [filename]       deletes the post and rebuilds the blog
+
     rebuild                 regenerates all the pages and posts, preserving the content of the entries
+
     list                    list all posts
+
     tags [-n]               list all tags in alphabetical order
                             use '-n' to sort list by number of posts
      
