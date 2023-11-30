@@ -34,16 +34,40 @@ try
 
     var firstArg = args[0].ToLowerInvariant();
 
-    if (firstArg != "new" && firstArg != "post" && firstArg != "rebuild" && firstArg != "list" && firstArg != "tags" && firstArg != "delete" && firstArg != "help")
+    if (firstArg != "new" && firstArg != "post" && firstArg != "rebuild" && firstArg != "list" && firstArg != "edit" && firstArg != "delete" && firstArg != "tags")
     {
         printHelp();
         return;
     }
 
+    // do the easy things (no writes)
+    if (firstArg == "list")
+    {
+
+    }
+    else if (firstArg == "tags")
+    {
+
+    }
+    else if (firstArg == "help")
+    {
+
+    }
+    else if (firstArg == "edit")
+    {
+        // only check if the file exists here
+        // do the rest later
+    }
+
     // backup the blog
     Functions.Backup(currentWorkingDir);
 
-    // do the things
+    // create or copy css files if needed
+    Functions.CreateCss(currentWorkingDir);
+
+    // create or copy includes
+    Functions.CreateIncludes(currentWorkingDir);
+
     if (firstArg == "new")              // new
     {
         // creates a draft file using the optional title
@@ -77,33 +101,16 @@ try
 
         var content = Functions.GetHtmlContent(postPath, true);
 
-        Functions.CreateHtmlPage(content, currentWorkingDir);
+        Functions.WriteEntry(content, currentWorkingDir);
 
     }
     else if (firstArg == "rebuild")
     {
 
     }
-    else if (firstArg == "list")
-    {
-
-    }
-    else if (firstArg == "tags")
-    {
-
-    }
     else if (firstArg == "delete")
     {
 
-    }
-    else if (firstArg == "help")
-    {
-
-    }
-    else
-    {
-        printHelp();
-        return;
     }
 }
 catch (Exception e)
@@ -143,35 +150,38 @@ void doNew(string workingDir)
     var draftPath = Functions.CreateNewDraft(workingDir, useHtml, title);
     var relPath = Path.GetRelativePath(workingDir, draftPath);
 
-    Console.WriteLine(String.Format("Draft written to {0} - use 'bashlessblog post' to publish the post after editing", relPath));
+    Console.WriteLine($"Draft written to {relPath} - use 'bashlessblog post' to publish the post after editing");
 }
 
 void printHelp()
 {
-    var headerString = String.Format("{0} version {1}", Functions.Config.GlobalSoftwareName, Functions.Config.GlobalSoftwareVersion);
-    var helpText = @"Usage: bashlessblog command [option] [title/filename]
-     
-Commands:
-    new [-html] [title]     create a new draft in the drafts folder, using markdown
-                            '-html' overrides the default behavior and creates an HTML draft
-                            'title' will override the default title with the supplied title, the title must be in quotes
-
-    edit [filename]         create a draft from a previously posted post
-
-    post [filename]         publishes a draft from the drafts folder
-                            if the title of a previously posted entry changes, the filename will change to match
-                            this operation rebuilds the blog
-
-    delete [filename]       deletes the post and rebuilds the blog
-
-    rebuild                 regenerates all the pages and posts, preserving the content of the entries
-
-    list                    list all posts
-
-    tags [-n]               list all tags in alphabetical order
-                            use '-n' to sort list by number of posts
-     
-For more information please check the comments and config options in the source code";
+    var headerString = $"{Functions.Config.GlobalSoftwareName} version {Functions.Config.GlobalSoftwareVersion}";
+    var helpText = """
+                   Usage: bashlessblog command [option] [title/filename]
+                   
+                   Commands:
+                       new [-html] [title]     create a new draft in the drafts folder, using markdown
+                                               '-html' overrides the default behavior and creates an HTML draft
+                                               'title' will override the default title with the supplied title, the title must be in quotes
+                   
+                       edit [filename]         create a draft from a previously posted post
+                                               this will remove the post from the blog and rebuild the blog
+                   
+                       post [filename]         publishes a draft from the drafts folder
+                                               if the title of a previously posted entry changes, the filename will change to match
+                                               this operation rebuilds the blog
+                   
+                       delete [filename]       deletes the post and rebuilds the blog
+                   
+                       rebuild                 regenerates all the pages and posts, preserving the content of the entries
+                   
+                       list                    list all posts
+                   
+                       tags [-n]               list all tags in alphabetical order
+                                               use '-n' to sort list by number of posts
+                   
+                   For more information please check the comments and config options in the source code
+                   """;
 
     Console.WriteLine(headerString);
     Console.WriteLine(helpText);
