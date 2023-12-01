@@ -1,4 +1,6 @@
 ﻿using Markdig;
+using Microsoft.VisualBasic;
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 
@@ -31,7 +33,6 @@ namespace bashlessblog
                 Directory.CreateDirectory(backupDir);
 
             // create backup
-            var backupName = "backup-" + DateTime.Now.ToString("yyyyMMddTHHmmss") + ".zip";
             var backupPath = Path.Combine(backupDir, "backup-" + DateTime.Now.ToString("yyyyMMddTHHmmss") + ".zip");
 
 
@@ -99,7 +100,8 @@ namespace bashlessblog
         /// <remarks>This is the second half of write_entry from bb.sh without the editor loop</remarks>
         internal static void WriteEntry(string postContents, string workingDir)
         {
-            // this first bit is parse_file from bb.sh
+            // this first section of code is parse_file from bb.sh
+
             // the first line is expected to be the title
             var title = String.Empty;
             var content = new StringBuilder();
@@ -147,8 +149,100 @@ namespace bashlessblog
 
             // we have everything we need to make the html file
             //create_html_page "$content" "$filename" no "$title" "$2" "$global_author"
-            // TODO: handle .header.html
+            CreateHtmlPage(content.ToString(), filename, false, title);     // TODO handle timestamp on edit
 
+        }
+
+        /// <summary>
+        /// Creates an HTML page
+        /// </summary>
+        /// <param name="content">The HTML content for the body of the page</param>
+        /// <param name="filename">The filename to write to</param>
+        /// <param name="generateIndex">true to generate the index page, false to write a normal post</param>
+        /// <param name="title">The title of the post, without HTML decoration</param>
+        /// <param name="timestamp">Optional timestamp to use instead of now</param>
+        internal static void CreateHtmlPage(string content, string filename, bool generateIndex, string title, string timestamp = "")
+        {
+            var htmlBuilder = new StringBuilder();
+
+            // header
+            htmlBuilder.AppendLine(File.ReadAllText(".header.html"));
+            htmlBuilder.AppendLine($"<title>{title}</title>");
+            htmlBuilder.AppendLine("</head><body>");
+
+            // body begin file
+            if(!String.IsNullOrEmpty(Config.BodyBeginFile))
+                htmlBuilder.AppendLine(File.ReadAllText(Config.BodyBeginFile));
+
+            // body begin file index
+            if (generateIndex && !String.IsNullOrEmpty(Config.BodyBeginFileIndex))
+                htmlBuilder.AppendLine(File.ReadAllText(Config.BodyBeginFileIndex));
+
+            htmlBuilder.AppendLine("<div id=\"divbodyholder\">");
+            htmlBuilder.AppendLine("<div class=\"headerholder\"><div class=\"header\">");
+            htmlBuilder.AppendLine("<div id=\"title\">");
+            htmlBuilder.AppendLine(File.ReadAllText(".title.html"));
+            htmlBuilder.AppendLine("</div></div></div>");
+            htmlBuilder.AppendLine("<div id=\"divbody\"><div class=\"content\">");
+
+            // TODO does this need to be handled? bb.sh line 459
+            // file_url=${filename#./}
+            // file_url =${ file_url %.rebuilt} # Get the correct URL when rebuilding
+
+            // blog post
+            if (!generateIndex)
+            {
+                htmlBuilder.AppendLine("<!-- entry begin -->");
+                htmlBuilder.AppendLine($"<h3><a class=\"ablack\" href=\"{filename}\">");
+                htmlBuilder.AppendLine(title);
+                htmlBuilder.AppendLine("</a></h3>");
+
+                var creationDt = DateTime.Now;
+
+                // if there is a timestamp passed in, use that for creationtime
+                if (!String.IsNullOrEmpty(timestamp))
+                {
+                    var parsed = false;
+                    if (!parsed)
+                        parsed = DateTime.TryParseExact(timestamp, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.None, out creationDt);
+                    else if (!parsed)
+                        parsed = DateTime.TryParse(timestamp, out creationDt);      // fallback
+                    else
+                        creationDt = DateTime.Now;                                  // fallback #2
+                }
+
+                // timestamp
+                htmlBuilder.AppendLine($"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->");
+
+                // date and author
+                htmlBuilder.Append($"<div class=\"subtitle\">{creationDt.ToString(Config.DateFormat, Config.CurrentLocale)}");
+                if (!String.IsNullOrEmpty(Config.GlobalAuthor))
+                    htmlBuilder.Append($" &mdash; \n{Config.GlobalAuthor}");
+                htmlBuilder.Append("</div>\n");
+
+                // content
+                htmlBuilder.AppendLine("<!-- text begin -->");
+                htmlBuilder.AppendLine(content);
+                if(!generateIndex)
+                {
+                    htmlBuilder.AppendLine("\n<!-- text end -->");
+                    htmlBuilder.AppendLine("<!-- entry end -->");
+                }
+
+                htmlBuilder.AppendLine("</div>");
+
+                // footer
+                htmlBuilder.AppendLine(File.ReadAllText(".footer.html"));
+                htmlBuilder.AppendLine("</div></div>");
+
+                // body end file
+                if (!String.IsNullOrEmpty(Config.BodyEndFile))
+                    htmlBuilder.AppendLine(File.ReadAllText(Config.BodyEndFile));
+
+                htmlBuilder.AppendLine("</body></html>");
+
+                File.WriteAllText(filename, htmlBuilder.ToString());
+            }
         }
 
         /// <summary>
@@ -320,26 +414,5 @@ namespace bashlessblog
 
             return filename;
         }
-
-        // TODO NONE OF THIS IS NEEDED FUCK
-
-        /// <summary>
-        /// Creates a markdown file with a random component in the path name
-        /// writes the file to the path and 
-        /// </summary>
-        /// <param name="outputPath"></param>
-        /// <returns></returns>
-        //public static string Markdown(string outputPath)
-        //{
-
-        //}
-
-        //private static Random rand = new Random();
-        //private static UInt16 Random()
-        //{
-        //    return (UInt16)rand.Next(0, 32767);
-        //}
-
-
     }
 }

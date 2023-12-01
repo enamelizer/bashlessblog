@@ -95,6 +95,7 @@ try
 
         if (!File.Exists(postPath))
         {
+            Console.WriteLine($"File does not exist: {postPath}");
             printHelp();
             return;
         }
