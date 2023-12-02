@@ -4,13 +4,12 @@ using bashlessblog;
 
 try
 {
-    // Load default configuration, then override settings with the config file
-    var currentWorkingDir = Directory.GetCurrentDirectory();
-    var configFile = Path.Combine(currentWorkingDir, ".config");
+    // Load configuration
+    var configFile = ".config";
     if (!File.Exists(configFile))
     {
-        Console.WriteLine(".config does not exist at " + currentWorkingDir);
-        Console.WriteLine("Please set the working directory to a valid bashlessblog directory");
+        Console.WriteLine(".config does not exist in the current working directory");
+        Console.WriteLine("Please run bashlessblog from the blog directory");
         return;
     }
 
@@ -60,50 +59,26 @@ try
     }
 
     // backup the blog
-    Functions.Backup(currentWorkingDir);
+    Functions.Backup();
 
     // create or copy css files if needed
-    Functions.CreateCss(currentWorkingDir);
+    Functions.CreateCss();
 
     // create or copy includes
-    Functions.CreateIncludes(currentWorkingDir);
+    Functions.CreateIncludes();
 
     if (firstArg == "new")              // new
     {
         // creates a draft file using the optional title
         // in the format specified
         // the first half of write_entry up until the editor opens
-
-        doNew(currentWorkingDir);
+       doNew();
     }
     else if (firstArg == "post")        // post
     {
-        // post a draft or edited post to the blog
+        // publishes a draft to the blog
         // the second half of write_entry
-        // TODO preview?
-
-        var postPath = String.Empty;
-        if (args.Length == 2)
-        {
-            postPath = Path.GetFullPath(args[1]);
-        }
-        else
-        {
-            printHelp();
-            return;
-        }
-
-        if (!File.Exists(postPath))
-        {
-            Console.WriteLine($"File does not exist: {postPath}");
-            printHelp();
-            return;
-        }
-
-        var content = Functions.GetHtmlContent(postPath, true);
-
-        Functions.WriteEntry(content, currentWorkingDir);
-
+        doPost();
     }
     else if (firstArg == "rebuild")
     {
@@ -119,7 +94,7 @@ catch (Exception e)
     Console.WriteLine(e.Message);
 }
 
-void doNew(string workingDir)
+void doNew()
 {
     // get the optional title for the new draft
     bool useHtml = false;
@@ -142,16 +117,41 @@ void doNew(string workingDir)
         useHtml = true;
         title = args[2];
     }
-    else
+    else if (args.Length != 1)
     {
+        Console.WriteLine("Error: Invalid arguments");
         printHelp();
         return;
     }
 
-    var draftPath = Functions.CreateNewDraft(workingDir, useHtml, title);
-    var relPath = Path.GetRelativePath(workingDir, draftPath);
+    var draftPath = Functions.CreateNewDraft(useHtml, title);
+    Console.WriteLine($"Draft written to {draftPath} - use 'bashlessblog post' to publish the post after editing");
+}
 
-    Console.WriteLine($"Draft written to {relPath} - use 'bashlessblog post' to publish the post after editing");
+void doPost()
+{
+    // post a draft or edited post to the blog
+    // the second half of write_entry
+    // TODO preview?
+    var postPath = String.Empty;
+    if (args.Length != 2)
+    {
+        Console.WriteLine("Error: Invalid arguments");
+        printHelp();
+        return;
+    }
+
+    postPath = args[1];
+
+    if (!File.Exists(postPath))
+    {
+        Console.WriteLine($"Error: File does not exist: {postPath}");
+        printHelp();
+        return;
+    }
+
+    var content = Functions.GetDraftContentAsHtml(postPath);
+    Functions.WriteEntry(content);
 }
 
 void printHelp()

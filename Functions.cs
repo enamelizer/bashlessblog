@@ -25,10 +25,10 @@ namespace bashlessblog
         /// <summary>
         /// Create a backup of all files, skipping the backup directory
         /// </summary>
-        internal static void Backup(string baseDir)
+        internal static void Backup()
         {
             // create backup dir if it doesn't exist
-            var backupDir = Path.Combine(baseDir, "backup");
+            var backupDir = "backup";
             if(!Directory.Exists(backupDir))
                 Directory.CreateDirectory(backupDir);
 
@@ -38,9 +38,9 @@ namespace bashlessblog
 
             using (var archive = ZipFile.Open(backupPath, ZipArchiveMode.Create))
             {
-                foreach (var path in Directory.GetFiles(baseDir, "*.*", SearchOption.AllDirectories))
+                foreach (var path in Directory.GetFiles(Directory.GetCurrentDirectory(), "*.*", SearchOption.AllDirectories))
                 {
-                    var relativePath = Path.GetRelativePath(baseDir, path);
+                    var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), path);
                     if (relativePath.StartsWith("backup"))
                         continue;
 
@@ -61,10 +61,10 @@ namespace bashlessblog
         /// If there is a title, add it to the post and the filename
         /// </summary>
         /// <remarks>This is the first part of write_entry from bb.sh up until the opening of the editor</remarks>
-        internal static string CreateNewDraft(string baseDir, bool useHtml, string title)
+        internal static string CreateNewDraft(bool useHtml, string title)
         {
             // drafts go in the /drafts directory of the working dir
-            var draftsDirectory = Path.Combine(baseDir, "drafts");
+            var draftsDirectory = "drafts";
             if (!Directory.Exists(draftsDirectory))
                 Directory.CreateDirectory(draftsDirectory);
 
@@ -98,7 +98,7 @@ namespace bashlessblog
         /// Given post content, create the HTML page in the working directory
         /// </summary>
         /// <remarks>This is the second half of write_entry from bb.sh without the editor loop</remarks>
-        internal static void WriteEntry(string postContents, string workingDir)
+        internal static void WriteEntry(string postContents)
         {
             // this first section of code is parse_file from bb.sh
 
@@ -108,10 +108,10 @@ namespace bashlessblog
             using (var reader = new StringReader(postContents))
             {
                 // get title
-                var currentLine = reader.ReadLine();    // read first line (title)
-                content.AppendLine(currentLine);        // add to output
+                var currentLine = reader.ReadLine();    // read first line (title) but don't add to output
                 if (!String.IsNullOrEmpty(currentLine))
                     title = currentLine.Replace("<p>", "").Replace("</p>", "");
+                currentLine = reader.ReadLine();
 
                 // title can't be empty
                 if (String.IsNullOrEmpty(title))
@@ -131,21 +131,19 @@ namespace bashlessblog
                 {
                     // remove junk from tags line and split on comma
                     var cleanLine = currentLine.Replace("<p>", "").Replace("</p>", "").Replace(Config.TemplateTagsLineHeader, "");
-                    tags = cleanLine.Split(',', (StringSplitOptions.RemoveEmptyEntries & StringSplitOptions.TrimEntries)).ToList();
+                    tags = cleanLine.Split(',', (StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
 
                     // create the lines with tag links
-                    var tagsLine = new StringBuilder();
+                    List<string> tagLinks = new List<string>();
                     foreach (var tag in tags)
-                        tagsLine.Append($"<a href='{Config.PrefixTags}{tag}'>{tag}</a>, ");
+                        tagLinks.Add($"<a href='{Config.PrefixTags}{tag}.html'>{tag}</a>");
+                    var tagsLine = $"\n\n<p>{Config.TemplateTagsLineHeader} {String.Join(", ",tagLinks)}</p>";
 
-                    content.AppendLine(tagsLine.ToString());
+                    content.Append(tagsLine.ToString());
                 }
-
-                // if there is anything else in the source content, add it
-                content.Append(reader.ReadToEnd());
             }
 
-            var filename = CreateUniqueFilename(workingDir, title, true);
+            var filename = CreateUniqueFilename(Directory.GetCurrentDirectory(), title, true);
 
             // we have everything we need to make the html file
             //create_html_page "$content" "$filename" no "$title" "$2" "$global_author"
@@ -166,7 +164,7 @@ namespace bashlessblog
             var htmlBuilder = new StringBuilder();
 
             // header
-            htmlBuilder.AppendLine(File.ReadAllText(".header.html"));
+            htmlBuilder.Append(File.ReadAllText(".header.html"));
             htmlBuilder.AppendLine($"<title>{title}</title>");
             htmlBuilder.AppendLine("</head><body>");
 
@@ -181,7 +179,7 @@ namespace bashlessblog
             htmlBuilder.AppendLine("<div id=\"divbodyholder\">");
             htmlBuilder.AppendLine("<div class=\"headerholder\"><div class=\"header\">");
             htmlBuilder.AppendLine("<div id=\"title\">");
-            htmlBuilder.AppendLine(File.ReadAllText(".title.html"));
+            htmlBuilder.Append(File.ReadAllText(".title.html"));
             htmlBuilder.AppendLine("</div></div></div>");
             htmlBuilder.AppendLine("<div id=\"divbody\"><div class=\"content\">");
 
@@ -217,12 +215,12 @@ namespace bashlessblog
                 // date and author
                 htmlBuilder.Append($"<div class=\"subtitle\">{creationDt.ToString(Config.DateFormat, Config.CurrentLocale)}");
                 if (!String.IsNullOrEmpty(Config.GlobalAuthor))
-                    htmlBuilder.Append($" &mdash; \n{Config.GlobalAuthor}");
+                    htmlBuilder.Append($" &mdash; \n{Config.GlobalAuthor}\n");
                 htmlBuilder.Append("</div>\n");
 
                 // content
                 htmlBuilder.AppendLine("<!-- text begin -->");
-                htmlBuilder.AppendLine(content);
+                htmlBuilder.Append(content);
                 if(!generateIndex)
                 {
                     htmlBuilder.AppendLine("\n<!-- text end -->");
@@ -232,12 +230,12 @@ namespace bashlessblog
                 htmlBuilder.AppendLine("</div>");
 
                 // footer
-                htmlBuilder.AppendLine(File.ReadAllText(".footer.html"));
+                htmlBuilder.Append(File.ReadAllText(".footer.html"));
                 htmlBuilder.AppendLine("</div></div>");
 
                 // body end file
                 if (!String.IsNullOrEmpty(Config.BodyEndFile))
-                    htmlBuilder.AppendLine(File.ReadAllText(Config.BodyEndFile));
+                    htmlBuilder.Append(File.ReadAllText(Config.BodyEndFile));
 
                 htmlBuilder.AppendLine("</body></html>");
 
@@ -249,7 +247,7 @@ namespace bashlessblog
         /// Create default .css files if overrides are not defined in the config
         /// or if they do not already exist
         /// </summary>
-        internal static void CreateCss(string workingDir)
+        internal static void CreateCss()
         {
             // if CSS files are defined in the config, skip creation of the defaults
             if (Config.CssInclude.Count > 0)
@@ -260,7 +258,7 @@ namespace bashlessblog
 
             // if the defaults already exist do not recreate them
             // they may be modified by the user
-            var blogCssPath = Path.Combine(workingDir, "blog.css");
+            var blogCssPath = "blog.css";
             if (!File.Exists(blogCssPath))
             {
                 var blogCssContent = """
@@ -282,7 +280,7 @@ namespace bashlessblog
                 File.WriteAllText(blogCssPath, blogCssContent);
             }
 
-            var mainCssPath = Path.Combine(workingDir, "main.css");
+            var mainCssPath = "main.css";
             if (!File.Exists(mainCssPath))
             {
                 var mainCssContent = """
@@ -309,21 +307,20 @@ namespace bashlessblog
         }
 
         // Create include files, or copy them if they are declared in config
-        internal static void CreateIncludes(string workingDir)
+        internal static void CreateIncludes()
         {
             // .title.html
-            var titlePath = Path.Combine(workingDir, ".title.html");
+            var titlePath = ".title.html";
             var titleContentBuilder = new StringBuilder();
             titleContentBuilder.AppendLine($"<h1 class=\"nomargin\"><a class=\"ablack\" href=\"{Config.GlobalUrl}/{Config.IndexFile}\">{Config.GlobalTitle}</a></h1>");
             titleContentBuilder.AppendLine($"<div id=\"description\">{Config.GlobalDescription}</div>");
             File.WriteAllText(titlePath, titleContentBuilder.ToString());
 
             // .header.html
-            var headerPath = Path.Combine(workingDir, ".header.html");
+            var headerPath = ".header.html";
             if (!String.IsNullOrEmpty(Config.HeaderFile))
             {
-                var customHeaderPath = Path.Combine(workingDir, Config.HeaderFile);
-                File.Copy(customHeaderPath, headerPath, true);
+                File.Copy(Config.HeaderFile, headerPath, true);
             }
             else
             {
@@ -332,6 +329,7 @@ namespace bashlessblog
                     <html xmlns="http://www.w3.org/1999/xhtml"><head>
                     <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
                     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
                     """);
 
                 foreach (var cssInclude in Config.CssInclude)
@@ -343,51 +341,47 @@ namespace bashlessblog
             }
 
             // .footer.html
-            var footerPath = Path.Combine(workingDir, ".footer.html");
+            var footerPath = ".footer.html";
             if (!String.IsNullOrEmpty(Config.FooterFile))
             {
-                var customFooterPath = Path.Combine(workingDir , Config.FooterFile);
-                File.Copy(customFooterPath, footerPath, true);
+                File.Copy(Config.FooterFile, footerPath, true);
             }
             else
             {
                 var protectedMail = Config.GlobalEmail.Replace("@", "&#64").Replace(".", "&#46");
                 var footerContent = $"""
-                    <div id=\"footer\">{Config.GlobalLicense} <a href=\"{Config.GlobalAuthorUrl}\">{Config.GlobalAuthor}</a> &mdash; <a href=\"mailto:{protectedMail}\">{protectedMail}</a><br/>
+                    <div id="footer">{Config.GlobalLicense} <a href="{Config.GlobalAuthorUrl}">{Config.GlobalAuthor}</a> &mdash; <a href="mailto:{protectedMail}">{protectedMail}</a><br/>
                     Generated with <a href="https://github.com/enamelizer/bashlessblog">bashlessblog</a>, a small .net program to easily create blogs like this one</div>
+
                     """;
+
+                File.WriteAllText(footerPath, footerContent.ToString());
             }
         }
 
         /// <summary>
         /// Delete all include files
         /// </summary>
-        internal static void DeleteIncludes(string workingDirectory)
+        internal static void DeleteIncludes()
         {
-            File.Delete(Path.Combine(workingDirectory, ".title.html"));
-            File.Delete(Path.Combine(workingDirectory, ".header.html"));
-            File.Delete(Path.Combine(workingDirectory, ".footer.html"));
+            File.Delete(".title.html");
+            File.Delete(".header.html");
+            File.Delete(".footer.html");
         }
 
         /// <summary>
-        /// Gets the contents of a post as HTML
+        /// Gets the contents of a draft as HTML
+        /// skipping the first line as this is the title not content
         /// </summary>
-        internal static string GetHtmlContent(string postPath, bool isDraft)
+        internal static string GetDraftContentAsHtml(string postPath)
         {
             var html = String.Empty;
             var postContents = File.ReadAllText(postPath);
 
-            if (isDraft)
-            {
-                if (Path.GetExtension(postPath) == ".md")
-                    html = Markdown.ToHtml(postContents);
-                else if (Path.GetExtension(postPath) == ".html")
-                    html = postContents;
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            if (Path.GetExtension(postPath) == ".md")
+                html = Markdown.ToHtml(postContents);
+            else if (Path.GetExtension(postPath) == ".html")
+                html = postContents;
 
             return html;
         }
