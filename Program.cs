@@ -140,10 +140,10 @@ void doNew()
 
 void doPost()
 {
-    // post a draft or edited post to the blog
+    // post a draft to the blog
     // the second half of write_entry
     // TODO preview?
-    var postPath = String.Empty;
+    var draftPath = String.Empty;
     if (args.Length != 2)
     {
         Console.WriteLine("Error: Invalid arguments");
@@ -151,17 +151,16 @@ void doPost()
         return;
     }
 
-    postPath = args[1];
+    draftPath = args[1];
 
-    if (!File.Exists(postPath))
+    if (!File.Exists(draftPath))
     {
-        Console.WriteLine($"Error: File does not exist: {postPath}");
+        Console.WriteLine($"Error: File does not exist: {draftPath}");
         printHelp();
         return;
     }
 
-    var content = BashlessBlog.GetDraftContentAsHtml(postPath);
-    var filename = BashlessBlog.WriteEntry(content);
+    var filename = BashlessBlog.WriteEntry(draftPath);
     Console.WriteLine($"Post written to {filename}");
 }
 

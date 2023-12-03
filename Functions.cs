@@ -1,4 +1,5 @@
 ﻿using Markdig;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
@@ -111,14 +112,18 @@ namespace bashlessblog
         /// Given post content, create the HTML page in the working directory
         /// </summary>
         /// <remarks>This is the second half of write_entry from bb.sh without the editor loop</remarks>
-        internal static string WriteEntry(string postContents)
+        internal static string WriteEntry(string draftPath)
         {
+            // get the draft contents
+            var draftContent = BashlessBlog.GetDraftContentAsHtml(draftPath);
+
             // this first section of code is parse_file from bb.sh
 
             // the first line is expected to be the title
             var title = String.Empty;
-            var content = new StringBuilder();
-            using (var reader = new StringReader(postContents))
+            var outputContent = new StringBuilder();
+            var tags = new List<string>();
+            using (var reader = new StringReader(draftContent))
             {
                 // get title
                 var currentLine = reader.ReadLine();    // read first line (title) but don't add to output
@@ -134,16 +139,15 @@ namespace bashlessblog
                 // read until we get to tags
                 while (String.IsNullOrEmpty(currentLine) || !currentLine.StartsWith("<p>" + Config.TemplateTagsLineHeader))
                 {
-                    content.AppendLine(currentLine);        // add to output
+                    outputContent.AppendLine(currentLine);        // add to output
                     currentLine = reader.ReadLine();        // get next line
                     continue;
                 }
 
                 // process tags into the correct output of tags with links
-                var tags = new List<string>();
                 if (currentLine.StartsWith("<p>" + Config.TemplateTagsLineHeader))
                 {
-                    // remove junk from tags line and split on comma
+                    // special tag extraction for drafts
                     var cleanLine = currentLine.Replace("<p>", "").Replace("</p>", "").Replace(Config.TemplateTagsLineHeader, "");
                     tags = cleanLine.Split(',', (StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
 
@@ -153,7 +157,7 @@ namespace bashlessblog
                         tagLinks.Add($"<a href='{Config.PrefixTags}{tag}.html'>{tag}</a>");
                     var tagsLine = $"\n\n<p>{Config.TemplateTagsLineHeader} {String.Join(", ",tagLinks)}</p>";
 
-                    content.Append(tagsLine.ToString());
+                    outputContent.Append(tagsLine.ToString());
                 }
             }
 
@@ -161,7 +165,17 @@ namespace bashlessblog
 
             // we have everything we need to make the html file
             //create_html_page "$content" "$filename" no "$title" "$2" "$global_author"
-            CreateHtmlPage(content.ToString(), filename, false, title);     // TODO handle timestamp on edit
+            CreateHtmlPage(outputContent.ToString(), filename, false, title);     // TODO handle timestamp on edit
+
+            // save markdown option
+            // TODO uncomment this when done testing
+            //if (Config.SaveMarkdown && Path.GetExtension(draftPath) == ".md")
+            //    File.Move(draftPath, Path.ChangeExtension(filename, ".md"));
+            //else
+            //    File.Delete(draftPath);
+
+            // rebuild tags
+            var relevantPosts = PostsWithTags(tags);
 
             return filename;
         }
@@ -441,6 +455,82 @@ namespace bashlessblog
                 filepath = filepath + $"-{i}" + (useHtml ? ".html" : ".md");
 
             return filepath;
+        }
+
+        /// <summary>
+        /// Given a list of tags, return a dictionary that maps each tag
+        /// to the files that contain the tags
+        /// </summary>
+        private static Dictionary<string, List<string>> PostsWithTags(List<string> tags)
+        {
+            // initalize mapping
+            var tagFileMapping = new Dictionary<string, List<string>>();
+            foreach (var tag in tags)
+                tagFileMapping.Add(tag, new List<string>());
+
+            // get all html files from the output directory that don't start with the tag prefix
+            var fileList = Directory.GetFiles(Config.OutputDir, "*.html");
+            foreach (var file in fileList)
+            {
+                // skip the tag_ files
+                if (Path.GetFileName(file).StartsWith(Config.PrefixTags))
+                    continue;
+
+                // get the tags in the post and if we have a match
+                // against the tags we are looking for, add it to the mapping
+                var tagsInPost = TagsInPost(file);
+                foreach(var tag in tags)
+                    if (tagsInPost.Contains(tag))
+                        tagFileMapping[tag].Add(file);
+            }
+
+            return tagFileMapping;
+        }
+
+        /// <summary>
+        /// Searches thru a file for the tagline
+        ///  and returns a list of tags
+        /// </summary>
+        private static List<string> TagsInPost(string filename)
+        {
+            var tagLine = File.ReadAllLines(filename).FirstOrDefault(x => x.StartsWith("<p>" + Config.TemplateTagsLineHeader));
+
+            if (String.IsNullOrEmpty(tagLine))
+                return new List<string>();
+
+            return ExtractTagsFromHtml(tagLine);
+        }
+
+        /// <summary>
+        /// Given the line with tags in it, return a list of tags
+        /// </summary>
+        private static List<string> ExtractTagsFromHtml(string tagLine)
+        {
+            var tags = new List<string>();
+
+            if (tagLine.StartsWith("<p>" + Config.TemplateTagsLineHeader))
+            {
+                // read thru all chars and extract the non-html bits
+                // this is a goofy way to do it but avoids using another dependancy
+                var tagChars = new List<char>();
+                bool read = false;
+                foreach(var ch in tagLine)
+                {
+                    if (ch == '<')
+                        read = false;
+
+                    if (read)
+                        tagChars.Add(ch);
+
+                    if (ch == '>')
+                        read = true;
+                }
+
+                var cleanLine = new String(tagChars.ToArray()).Replace(Config.TemplateTagsLineHeader, "");
+                tags = cleanLine.Split(',', (StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
+            }
+
+            return tags;
         }
     }
 }
