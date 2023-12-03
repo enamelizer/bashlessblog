@@ -8,13 +8,23 @@ try
     var configFile = ".config";
     if (!File.Exists(configFile))
     {
-        Console.WriteLine(".config does not exist in the current working directory");
-        Console.WriteLine("Please run bashlessblog from the blog directory");
+        Console.WriteLine("Error: .config does not exist in the current working directory. Please run bashlessblog from the blog directory");
         return;
     }
 
     // load the config
-    Functions.LoadConfig(configFile);
+    try
+    {
+        var warnings = BashlessBlog.LoadAndValidateConfig(configFile);
+        if (!String.IsNullOrEmpty(warnings))
+            Console.WriteLine(warnings);
+    }
+    catch (Exception ex)
+    {
+        // either load or validate config threw an exception
+        Console.WriteLine(ex.Message);
+        return;
+    }
 
     // check args, print help if invalid
     // new <title>  - create new draft, title is optional
@@ -59,13 +69,13 @@ try
     }
 
     // backup the blog
-    Functions.Backup();
+    BashlessBlog.Backup();
 
     // create or copy css files if needed
-    Functions.CreateCss();
+    BashlessBlog.CreateCss();
 
     // create or copy includes
-    Functions.CreateIncludes();
+    BashlessBlog.CreateIncludes();
 
     if (firstArg == "new")              // new
     {
@@ -124,7 +134,7 @@ void doNew()
         return;
     }
 
-    var draftPath = Functions.CreateNewDraft(useHtml, title);
+    var draftPath = BashlessBlog.CreateNewDraft(useHtml, title);
     Console.WriteLine($"Draft written to {draftPath} - use 'bashlessblog post' to publish the post after editing");
 }
 
@@ -150,13 +160,14 @@ void doPost()
         return;
     }
 
-    var content = Functions.GetDraftContentAsHtml(postPath);
-    Functions.WriteEntry(content);
+    var content = BashlessBlog.GetDraftContentAsHtml(postPath);
+    var filename = BashlessBlog.WriteEntry(content);
+    Console.WriteLine($"Post written to {filename}");
 }
 
 void printHelp()
 {
-    var headerString = $"{Functions.Config.GlobalSoftwareName} version {Functions.Config.GlobalSoftwareVersion}";
+    var headerString = $"{Config.Internal.GlobalSoftwareName} version {Config.Internal.GlobalSoftwareVersion}";
     var helpText = """
                    Usage: bashlessblog command [option] [title/filename]
                    

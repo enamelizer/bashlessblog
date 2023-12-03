@@ -5,26 +5,23 @@ namespace bashlessblog
 {
     internal class Config
     {
-        public string GlobalSoftwareName { get; private set; } = "bashlessblog";
-        public string GlobalSoftwareVersion { get; private set; } = "0.1";
+        // blog title - ex "My fancy blog"
+        public string GlobalTitle  { get; private set; } = String.Empty;
 
-        // blog title
-        public string GlobalTitle  { get; private set; } = "My fancy blog";
+        // blog description - ex "A blog about turtles and carrots"
+        public string GlobalDescription { get; private set; } = String.Empty;
 
-        // blog description
-        public string GlobalDescription { get; private set; } = "A blog about stuff and things";
+        // public base url - ex "https://example.com/blog"
+        public string GlobalUrl { get; private set; } = String.Empty;
 
-        // public base url
-        public string GlobalUrl { get; private set; } = "https://example.com/blog";
+        // your name - ex "John Smith"
+        public string GlobalAuthor { get; private set; } = String.Empty;
 
-        // your name
-        public string GlobalAuthor { get; private set; } = "John Smith";
+        // author URL - ex "https://mytotallygnarlywebsite.com"
+        public string GlobalAuthorUrl { get; private set; } = String.Empty;
 
-        // author URL
-        public string GlobalAuthorUrl { get; private set; } = "https://mytotallygnarlywedsite.com";
-
-        // author email
-        public string GlobalEmail { get; private set; } = "john@smith.com";
+        // author email - ex "john@smith.com"
+        public string GlobalEmail { get; private set; } = String.Empty;
 
         // the license used for your published content
         // I highly reccomend changing this to a Creative Commons license
@@ -68,7 +65,7 @@ namespace bashlessblog
         public string PrefixTags { get; private set; } = "tag_";
 
         // personalized header and footer (only if you know what you're doing)
-        // DO NOT name them .header.html, .footer.html or they will be overwritten
+        // DO NOT name them .header.html, .footer.html or they will be overwritten on rebuild
         // leave blank to generate them, recommended
         public string HeaderFile { get; private set; } = String.Empty;
         public string FooterFile { get; private set; } = String.Empty;
@@ -138,9 +135,6 @@ namespace bashlessblog
         //https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-lcid/a9eac961-e77d-41a6-90a5-ce1a8b0cdb9c
         public string DateLocale { get; private set; } = String.Empty;
 
-        // this is for internal use, supply the locale in DateLocale
-        public CultureInfo CurrentLocale { get; private set; } = CultureInfo.CurrentCulture;
-
         // Don't change these dates
         //public string DateFormatFull { get; private set; } = "%a, %d %b %Y %H:%M:%S %z";      // this is what is fed into the 'date' util and is
                                                                                                 // fucking up dates on rebuilds
@@ -158,6 +152,25 @@ namespace bashlessblog
         // You can change it to path on your computer, if you write posts locally
         // before copying them to the server
         public string PreviewUrl { get; private set; } = String.Empty;
+
+        // organization, espcially separating the input files from the ouput and allowing
+        // for only the output to be published instead of having all items accessable under '.\blog'
+        // for default bashblog behavior, set these to empty
+        public string BackupDir { get; private set; } = "backup";
+        public string DraftDir { get; private set; } = "drafts";
+        public string IncludeDir { get; private set; } = "includes";
+        public string OutputDir { get; private set; } = "output";
+
+
+        // stuff we don't want the user to set via .config
+        internal static class Internal
+        {
+            public static readonly string GlobalSoftwareName = "bashlessblog";
+            public static readonly string GlobalSoftwareVersion = "0.1";
+
+            // this is the internal/parsed version of DateLocal
+            public static CultureInfo DateCulture { get; set; } = CultureInfo.CurrentCulture;
+        }
 
         /// <summary>
         /// Loads a custom configuration by looking up properties via reflection
@@ -239,11 +252,7 @@ namespace bashlessblog
                 }
                 else if (key == "DateLocale")
                 {
-                    try { CurrentLocale = CultureInfo.GetCultureInfo(DateLocale, true); } catch { }
-                }
-                else if (key == "CurrentLocale")
-                {
-                    // ignore
+                    try { Internal.DateCulture = CultureInfo.GetCultureInfo(DateLocale, true); } catch { }
                 }
                 else
                 {
@@ -252,9 +261,20 @@ namespace bashlessblog
                     if (propertyInfo != null)
                         propertyInfo.SetValue(this, value);
                 }
-            }
 
-            ValidateConfig();
+                // set defaults for empty paths
+                if (String.IsNullOrEmpty(BackupDir))
+                    BackupDir = Directory.GetCurrentDirectory();
+
+                if (String.IsNullOrEmpty(DraftDir))
+                    DraftDir = Directory.GetCurrentDirectory();
+
+                if (String.IsNullOrEmpty(IncludeDir))
+                    IncludeDir = Directory.GetCurrentDirectory();
+
+                if (String.IsNullOrEmpty(OutputDir))
+                    OutputDir = Directory.GetCurrentDirectory();
+            }
         }
 
         /// <summary>
@@ -277,13 +297,45 @@ namespace bashlessblog
             return returnStringBuilder.ToString();
         }
 
-        public void ValidateConfig()
+        /// <summary>
+        /// Validates the configuration and returns warnings.
+        /// If there are errors, the warnings and errors are thrown in an exception
+        /// </summary>
+        public string ValidateConfig()
         {
+            var warnings = new StringBuilder();
+            var errors = new StringBuilder();
+
+            // warnings
+            if (String.IsNullOrEmpty(GlobalTitle))
+                warnings.AppendLine("Config Warning: GlobalTitle is empty");
+
+            if (String.IsNullOrEmpty(GlobalDescription))
+                warnings.AppendLine("Config Warning: GlobalDescription is empty");
+
+            if (String.IsNullOrEmpty(GlobalAuthor))
+                warnings.AppendLine("Config Warning: GlobalAuthor is empty");
+
+            if (String.IsNullOrEmpty(GlobalAuthorUrl))
+                warnings.AppendLine("Config Warning: GlobalAuthorUrl is empty");
+
+            if (String.IsNullOrEmpty(GlobalEmail))
+                warnings.AppendLine("Config Warning: GlobalEmail is empty");
+
             if (HeaderFile == ".header.html")
-                throw new Exception("Please check your configuration. '.header.html' is not a valid value for the setting 'HeaderFile'");
+                warnings.AppendLine("Config Warning: '.header.html' is the default 'HeaderFile' name and will be overwritten on rebuild");
 
             if (FooterFile == ".footer.html")
-                throw new Exception("Please check your configuration. '.footer.html' is not a valid value for the setting 'FooterFile'");
+                warnings.AppendLine("Config Warning: '.footer.html' is the default 'FooterFile' name and will be overwritten on rebuild");
+
+            // errors
+            if (String.IsNullOrEmpty(GlobalUrl))
+                errors.AppendLine("Config Error: GlobalUrl cannot be empty");
+
+            if (errors.Length > 0)
+                throw new Exception(warnings.ToString() + errors.ToString());
+
+            return warnings.ToString();
         }
     }
 }
