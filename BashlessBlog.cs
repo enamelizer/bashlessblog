@@ -1,7 +1,8 @@
 ﻿using Markdig;
-using System.Diagnostics;
+using Markdig.Helpers;
 using System.Globalization;
 using System.IO.Compression;
+using System.IO.Enumeration;
 using System.Text;
 
 namespace bashlessblog
@@ -175,7 +176,7 @@ namespace bashlessblog
             //    File.Delete(draftPath);
 
             // rebuild tags
-            var relevantPosts = PostsWithTags(tags);
+            RebuildTags(tags);
 
             return filename;
         }
@@ -269,6 +270,38 @@ namespace bashlessblog
                 htmlBuilder.AppendLine("</body></html>");
 
                 File.WriteAllText(filepath, htmlBuilder.ToString());
+            }
+        }
+
+
+        internal static void RebuildTags(List<string> tags)
+        {
+            // delete tag files
+            var files = Directory.GetFiles(Config.OutputDir, "tag_*.html");
+            foreach (var file in files)
+            {
+                if (tags == null)       // all tags
+                {
+                    File.Delete(file);
+                }
+                else
+                {
+                    var fileTag = file.Replace("tag_", "").Replace(".html", "");
+                    if (tags.Contains(fileTag))
+                        File.Delete(file);
+                }
+            }
+
+            // get the mapping of tags to files
+            var tagFileMapping = PostsWithTags(tags);
+
+            // for each file associated with the tag, get the file content for the tag file
+            foreach(var tagMapping in tagFileMapping)
+            {
+                var tagFileContent = new StringBuilder();
+
+                foreach (var file in tagFileMapping.Values)
+                    tagFileContent.Append(GetHtmlFileContent(file));
             }
         }
 
@@ -458,30 +491,35 @@ namespace bashlessblog
         }
 
         /// <summary>
-        /// Given a list of tags, return a dictionary that maps each tag
+        /// Return a dictionary that maps each tag
         /// to the files that contain the tags
+        /// 
+        /// If tags is null, all tags in all posts are returned
         /// </summary>
         private static Dictionary<string, List<string>> PostsWithTags(List<string> tags)
         {
-            // initalize mapping
             var tagFileMapping = new Dictionary<string, List<string>>();
-            foreach (var tag in tags)
-                tagFileMapping.Add(tag, new List<string>());
 
             // get all html files from the output directory that don't start with the tag prefix
             var fileList = Directory.GetFiles(Config.OutputDir, "*.html");
             foreach (var file in fileList)
             {
-                // skip the tag_ files
-                if (Path.GetFileName(file).StartsWith(Config.PrefixTags))
+                // skip the boilerplate files
+                if (IsBoilerplateFile(file))
                     continue;
 
-                // get the tags in the post and if we have a match
-                // against the tags we are looking for, add it to the mapping
+                // get the tags in the file
                 var tagsInPost = TagsInPost(file);
-                foreach(var tag in tags)
-                    if (tagsInPost.Contains(tag))
-                        tagFileMapping[tag].Add(file);
+                foreach (var tag in tagsInPost)
+                {
+                    if (tags == null || tags.Contains(tag))     // if tags is null, get all tags
+                    {
+                        if (tagFileMapping.ContainsKey(tag))
+                            tagFileMapping[tag].Add(file);
+                        else
+                            tagFileMapping.Add(tag, new List<string>() { file });
+                    }
+                }
             }
 
             return tagFileMapping;
@@ -531,6 +569,38 @@ namespace bashlessblog
             }
 
             return tags;
+        }
+
+        /// <summary>
+        /// Check the filename against all known non-post filenames.
+        /// This ignores the paths as they may be defined
+        /// in input locations in the config file and copied to the output
+        /// </summary>
+        /// <param name="filepath"></param>
+        /// <returns></returns>
+        private static bool IsBoilerplateFile(string filepath)
+        {
+            var filename = Path.GetFileName(filepath);
+
+            // the files could be copied from an input location
+            // to an output location so look only at the filename
+            foreach (var file in Config.NonBlogpostFiles)
+                if (filename == Path.GetFileName(file))
+                    return true;
+
+            if (filename == Path.GetFileName(Config.IndexFile) ||
+                filename == Path.GetFileName(Config.ArchiveIndex) ||
+                filename == Path.GetFileName(Config.TagIndex) ||
+                filename == Path.GetFileName(Config.FooterFile) ||
+                filename == Path.GetFileName(Config.HeaderFile) ||
+                filename.StartsWith(Config.PrefixTags))
+                return true;
+
+            foreach (var file in Config.HtmlExclude)
+                if (filename == Path.GetFileName(file))
+                    return true;
+
+            return false;
         }
     }
 }
