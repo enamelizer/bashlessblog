@@ -247,33 +247,39 @@ namespace bashlessblog
                 if (!String.IsNullOrEmpty(Config.GlobalAuthor))
                     htmlBuilder.Append($" &mdash; \n{Config.GlobalAuthor}\n");
                 htmlBuilder.Append("</div>\n");
-
-                // content
                 htmlBuilder.AppendLine("<!-- text begin -->");
-                htmlBuilder.Append(content);
-                if(!generateIndex)
-                {
-                    htmlBuilder.AppendLine("\n<!-- text end -->");
-                    htmlBuilder.AppendLine("<!-- entry end -->");
-                }
-
-                htmlBuilder.AppendLine("</div>");
-
-                // footer
-                htmlBuilder.Append(File.ReadAllText(Path.Combine(Config.IncludeDir, ".footer.html")));
-                htmlBuilder.AppendLine("</div></div>");
-
-                // body end file
-                if (!String.IsNullOrEmpty(Config.BodyEndFile))
-                    htmlBuilder.Append(File.ReadAllText(Config.BodyEndFile));
-
-                htmlBuilder.AppendLine("</body></html>");
-
-                File.WriteAllText(filepath, htmlBuilder.ToString());
             }
+
+            // content for any type of file
+            htmlBuilder.Append(content);
+
+            // blog post
+            if(!generateIndex)
+            {
+                htmlBuilder.AppendLine("\n<!-- text end -->");
+                htmlBuilder.AppendLine("<!-- entry end -->");
+            }
+
+            htmlBuilder.AppendLine("</div>");
+
+            // footer
+            htmlBuilder.Append(File.ReadAllText(Path.Combine(Config.IncludeDir, ".footer.html")));
+            htmlBuilder.AppendLine("</div></div>");
+
+            // body end file
+            if (!String.IsNullOrEmpty(Config.BodyEndFile))
+                htmlBuilder.Append(File.ReadAllText(Config.BodyEndFile));
+
+            htmlBuilder.AppendLine("</body></html>");
+
+            // write the file
+            File.WriteAllText(filepath, htmlBuilder.ToString());
         }
 
-
+        /// <summary>
+        /// Rebuilds tags, either the tag pages represented by the tags list
+        /// or all tags if the tags list is null
+        /// </summary>
         internal static void RebuildTags(List<string> tags)
         {
             // delete tag files
@@ -298,10 +304,16 @@ namespace bashlessblog
             // for each file associated with the tag, get the file content for the tag file
             foreach(var tagMapping in tagFileMapping)
             {
+                var tag = tagMapping.Key;
                 var tagFileContent = new StringBuilder();
 
-                foreach (var file in tagFileMapping.Values)
-                    tagFileContent.Append(GetHtmlFileContent(file));
+                foreach (var file in tagFileMapping[tag])
+                    tagFileContent.Append(GetHtmlFileContent(file, "entry", "entry"));
+
+                // create the tag file
+                var tagFilePath = Path.Combine(Config.OutputDir, Config.PrefixTags + tag + ".html");
+                var tagFileTitle = $"{Config.GlobalTitle} &mdash; {Config.TemplateTagTitle} {tag}";
+                CreateHtmlPage(tagFileContent.ToString(), tagFilePath, true, tagFileTitle);
             }
         }
 
@@ -468,6 +480,54 @@ namespace bashlessblog
         }
 
         /// <summary>
+        /// Gets the contents of a published HTML post
+        /// </summary>
+        private static string GetHtmlFileContent(string filePath, string begin, string end)
+        {
+            var beginText = $"<!-- {begin} begin -->";
+            var endText = $"<!-- {end} end -->";
+
+            var builder = new StringBuilder();
+            var startFound = false;
+            var cutFound = false;
+
+            foreach (var line in File.ReadLines(filePath))
+            {
+                if (line.Contains(beginText))
+                {
+                    // start reading
+                    startFound = true;
+                }
+                else if (line.Contains(endText))
+                { // stop reading
+                    break;
+                }
+                else if (startFound && Config.CutDo && line.Contains(Config.CutLine))
+                {
+                    // we found the cut line, inject "read more" here
+                    cutFound = true;
+                    builder.AppendLine($"<p class=\"readmore\"><a href=\"{Path.GetFileName(filePath)}\">{Config.TemplateReadMore}</a></p>");
+
+                    //  if end is not set to "text" keep reading
+                    if (end == "text")
+                        break;
+                }
+                else if (startFound && !cutFound)
+                {
+                    // if we have found the start and not the cut line, keep reading
+                    builder.AppendLine(line);
+                }
+                else if (cutFound && !Config.CutTags && line.StartsWith($"<p>{Config.TemplateTagsLineHeader}"))
+                {
+                    // we found the cut line but we want to include tags past the cut
+                    builder.AppendLine(line);
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        /// <summary>
         /// Given a target path, title, and file format this function
         /// returns a unique filepath with regards to the target directory.
         /// This will also attempt to make a clean ascii url-safe name.
@@ -479,13 +539,12 @@ namespace bashlessblog
             // https://github.com/anyascii/anyascii#net
             var asciiTitle = Encoding.ASCII.GetString(Encoding.UTF8.GetBytes(title)).Replace(' ', '-').ToLowerInvariant();
             var asciiTitleStripped = Array.FindAll<char>(asciiTitle.ToArray(), (c => (char.IsLetterOrDigit(c) || c == '-')));
-            var filepath = Path.Combine(targetDir, new string(asciiTitleStripped));
 
             // find a filename not in use and add the proper extension
-            filepath = filepath + (useHtml ? ".html" : ".md");
+            var filepath = Path.Combine(targetDir, new string(asciiTitleStripped)) + (useHtml ? ".html" : ".md");
             int i = 1;
             while (File.Exists(filepath))
-                filepath = filepath + $"-{i}" + (useHtml ? ".html" : ".md");
+                filepath = Path.Combine(targetDir, new string(asciiTitleStripped)) + $"-{i}" + (useHtml ? ".html" : ".md");
 
             return filepath;
         }

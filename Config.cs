@@ -53,9 +53,8 @@ namespace bashlessblog
         // When cutting, cut also tags? If "no", tags will appear in index page for cut articles
         public bool CutTags { get; private set; } = true;
 
-        // Regexp matching the HTML line where to do the cut
-        // note that slash is regexp separator so you need to prepend it with backslash
-        public string CutLine { get; private set; } = "<hr ?\\/?>";     // TODO check if this is escaped properly 
+        // The HTML line where to do the cut
+        public string CutLine { get; private set; } = "<hr />";
 
         // save markdown file when posting with "bashlessblog post -m". Set 'false' to discard it.
         public bool SaveMarkdown { get; private set; } = true;
