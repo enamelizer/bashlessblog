@@ -92,10 +92,7 @@ try
     }
     else if (firstArg == "rebuild")
     {
-        // rebuild all entries
 
-        // rebuild tags
-        BashlessBlog.RebuildTags(null);
     }
     else if (firstArg == "delete")
     {

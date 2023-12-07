@@ -280,7 +280,7 @@ namespace bashlessblog
         /// Rebuilds tags, either the tag pages represented by the tags list
         /// or all tags if the tags list is null
         /// </summary>
-        internal static void RebuildTags(List<string>? tags)
+        internal static void RebuildTags(List<string> tags)
         {
             // delete tag files
             var files = Directory.GetFiles(Config.OutputDir, "tag_*.html");
@@ -307,18 +307,12 @@ namespace bashlessblog
                 var tag = tagMapping.Key;
                 var tagFileContent = new StringBuilder();
 
-                // sort the files by date embedded in the file
-                var sortedFiles = tagFileMapping[tag]
-                            .OrderByDescending(f => GetPostDate(f))
-                            .ToList();
-
-                // get post content for each file
-                foreach (var file in sortedFiles)
+                foreach (var file in tagFileMapping[tag])
                     tagFileContent.Append(GetHtmlFileContent(file, "entry", "entry"));
 
                 // create the tag file
                 var tagFilePath = Path.Combine(Config.OutputDir, Config.PrefixTags + tag + ".html");
-                var tagFileTitle = $"{Config.GlobalTitle} &mdash; {Config.TemplateTagTitle} \"{tag}\"";
+                var tagFileTitle = $"{Config.GlobalTitle} &mdash; {Config.TemplateTagTitle} {tag}";
                 CreateHtmlPage(tagFileContent.ToString(), tagFilePath, true, tagFileTitle);
             }
         }
@@ -438,7 +432,7 @@ namespace bashlessblog
             }
             else if (!File.Exists(footerPath))
             {
-                var protectedMail = Config.GlobalEmail.Replace("@", "&#64;").Replace(".", "&#46;");
+                var protectedMail = Config.GlobalEmail.Replace("@", "&#64").Replace(".", "&#46");
                 var footerContent = $"""
                     <div id="footer">{Config.GlobalLicense} <a href="{Config.GlobalAuthorUrl}">{Config.GlobalAuthor}</a> &mdash; <a href="mailto:{protectedMail}">{protectedMail}</a><br/>
                     Generated with <a href="https://github.com/enamelizer/bashlessblog">bashlessblog</a>, a small .net program to easily create blogs like this one</div>
@@ -561,7 +555,7 @@ namespace bashlessblog
         /// 
         /// If tags is null, all tags in all posts are returned
         /// </summary>
-        private static Dictionary<string, List<string>> PostsWithTags(List<string>? tags)
+        private static Dictionary<string, List<string>> PostsWithTags(List<string> tags)
         {
             var tagFileMapping = new Dictionary<string, List<string>>();
 
@@ -666,34 +660,6 @@ namespace bashlessblog
                     return true;
 
             return false;
-        }
-
-        /// <summary>
-        /// Gets the post date embedded in the file
-        /// </summary>
-        private static DateTime GetPostDate(string file)
-        {
-            var lines = File.ReadAllLines(file);
-            var creationDt = DateTime.MinValue;
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("<!-- creationtime: "))
-                {
-                    var dateString = line.Replace("<!-- creationtime: ", "").Replace(" -->", "");
-                    var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.None, out creationDt);
-                    if (!parsed)
-                        DateTime.TryParse(dateString, out creationDt);      // fallback
-                }
-                else if (line.StartsWith("<!-- bashblog_timestamp: #"))
-                {
-                    var dateString = line.Replace("<!-- bashblog_timestamp: #", "").Replace("# -->", "");
-                    var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestampLegacy, CultureInfo.InvariantCulture, DateTimeStyles.None, out creationDt);
-                    if (!parsed)
-                        DateTime.TryParse(dateString, out creationDt);      // fallback
-                }
-            }
-
-            return creationDt;
         }
     }
 }
