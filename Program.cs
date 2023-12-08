@@ -93,6 +93,7 @@ try
     else if (firstArg == "rebuild")
     {
         // rebuild all entries
+        BashlessBlog.RebuildAllEntries();
 
         // rebuild tags
         BashlessBlog.RebuildTags(null);

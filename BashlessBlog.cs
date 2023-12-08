@@ -1,8 +1,6 @@
 ﻿using Markdig;
-using Markdig.Helpers;
 using System.Globalization;
 using System.IO.Compression;
-using System.IO.Enumeration;
 using System.Text;
 
 namespace bashlessblog
@@ -189,7 +187,7 @@ namespace bashlessblog
         /// <param name="generateIndex">true to generate the index page, false to write a normal post</param>
         /// <param name="title">The title of the post, without HTML decoration</param>
         /// <param name="timestamp">Optional timestamp to use instead of now</param>
-        internal static void CreateHtmlPage(string content, string filepath, bool generateIndex, string title, string timestamp = "")
+        internal static void CreateHtmlPage(string content, string filepath, bool generateIndex, string title, DateTime? timestamp = null)
         {
             var htmlBuilder = new StringBuilder();
 
@@ -225,19 +223,10 @@ namespace bashlessblog
                 htmlBuilder.AppendLine(title);
                 htmlBuilder.AppendLine("</a></h3>");
 
+                // use the input timestamp if it is not null or default
                 var creationDt = DateTime.Now;
-
-                // if there is a timestamp passed in, use that for creationtime
-                if (!String.IsNullOrEmpty(timestamp))
-                {
-                    var parsed = false;
-                    if (!parsed)
-                        parsed = DateTime.TryParseExact(timestamp, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.None, out creationDt);
-                    else if (!parsed)
-                        parsed = DateTime.TryParse(timestamp, out creationDt);      // fallback
-                    else
-                        creationDt = DateTime.Now;                                  // fallback #2
-                }
+                if (timestamp != null && timestamp != DateTime.MinValue)
+                    creationDt = (DateTime)timestamp;
 
                 // timestamp
                 htmlBuilder.AppendLine($"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->");
@@ -320,6 +309,25 @@ namespace bashlessblog
                 var tagFilePath = Path.Combine(Config.OutputDir, Config.PrefixTags + tag + ".html");
                 var tagFileTitle = $"{Config.GlobalTitle} &mdash; {Config.TemplateTagTitle} \"{tag}\"";
                 CreateHtmlPage(tagFileContent.ToString(), tagFilePath, true, tagFileTitle);
+            }
+        }
+
+        /// <summary>
+        /// Rebuilds all published posts, keeping the file content but updating the title, header, footers, etc
+        /// </summary>
+        internal static void RebuildAllEntries()
+        {
+            var contentFiles = Directory.GetFiles(Config.OutputDir, "*.html");
+            foreach (var file in contentFiles)
+            {
+                if (IsBoilerplateFile(file))
+                    continue;
+
+                var title = GetPostTitle(file);
+                var content = GetHtmlFileContent(file, "text", "text");
+                var creationDt = GetPostDate(file);
+
+                CreateHtmlPage(content, file, false, title, creationDt);
             }
         }
 
@@ -658,6 +666,9 @@ namespace bashlessblog
                 filename == Path.GetFileName(Config.TagIndex) ||
                 filename == Path.GetFileName(Config.FooterFile) ||
                 filename == Path.GetFileName(Config.HeaderFile) ||
+                filename == Path.GetFileName(".header.html") ||
+                filename == Path.GetFileName(".footer.html") ||
+                filename == Path.GetFileName(".title.html") ||
                 filename.StartsWith(Config.PrefixTags))
                 return true;
 
@@ -694,6 +705,27 @@ namespace bashlessblog
             }
 
             return creationDt;
+        }
+
+        /// <summary>
+        /// Gets the post title
+        /// </summary>
+        private static string GetPostTitle(string file)
+        {
+            var lines = File.ReadAllLines(file);
+            var foundTitleMarker = false;
+
+            // the title is on it's own line bewteen the h3 and a class="ablack" tags
+            foreach (var line in lines)
+            {
+                if (foundTitleMarker)
+                    return line; //.Replace("\n", "");
+
+                if (line.StartsWith("<h3><a class=\"ablack\""))
+                    foundTitleMarker = true;
+            }
+
+            return String.Empty;
         }
     }
 }

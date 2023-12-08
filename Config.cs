@@ -64,7 +64,6 @@ namespace bashlessblog
         public string PrefixTags { get; private set; } = "tag_";
 
         // personalized header and footer (only if you know what you're doing)
-        // DO NOT name them .header.html, .footer.html or they will be overwritten on rebuild
         // leave blank to generate them, recommended
         public string HeaderFile { get; private set; } = String.Empty;
         public string FooterFile { get; private set; } = String.Empty;
