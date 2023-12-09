@@ -62,11 +62,6 @@ try
     {
 
     }
-    else if (firstArg == "edit")
-    {
-        // only check if the file exists here
-        // do the rest later
-    }
 
     // backup the blog
     BashlessBlog.Backup();
@@ -97,7 +92,13 @@ try
     }
     else if (firstArg == "delete")
     {
+        // delete a bublished post and rebuild tags
         doDelete();
+    }
+    else if (firstArg == "edit")
+    {
+        // create a draft from a published post and depublish the post
+        doEdit();
     }
 }
 catch (Exception e)
@@ -120,19 +121,14 @@ void doNew()
     else if (args.Length == 3)  // if there are 3 args, expect -html and title
     {
         if (args[1] != "-html")
-        {
-            printHelp();
-            return;
-        }
+            errorAndExit("Error: Invalid arguments");
 
         useHtml = true;
         title = args[2];
     }
     else if (args.Length != 1)
     {
-        Console.WriteLine("Error: Invalid arguments");
-        printHelp();
-        return;
+        errorAndExit("Error: Invalid arguments");
     }
 
     var draftPath = BashlessBlog.CreateNewDraft(useHtml, title);
@@ -145,20 +141,12 @@ void doPost()
     // the second half of write_entry
     // TODO preview?
     if (args.Length != 2)
-    {
-        Console.WriteLine("Error: Invalid arguments");
-        printHelp();
-        return;
-    }
+        errorAndExit("Error: Invalid arguments");
 
     var draftPath = args[1];
 
     if (!File.Exists(draftPath))
-    {
-        Console.WriteLine($"Error: File does not exist: {draftPath}");
-        printHelp();
-        return;
-    }
+        errorAndExit($"Error: File does not exist: {draftPath}");
 
     var filename = BashlessBlog.WriteEntry(draftPath);
     Console.WriteLine($"Post written to {filename}");
@@ -167,23 +155,40 @@ void doPost()
 void doDelete()
 {
     if (args.Length != 2)
-    {
-        Console.WriteLine("Error: Invalid arguments");
-        printHelp();
-        return;
-    }
+        errorAndExit("Error: Invalid arguments");
 
     var postPath = args[1];
 
     if (!File.Exists(postPath))
-    {
-        Console.WriteLine($"Error: File does not exist: {postPath}");
-        printHelp();
-        return;
-    }
+        errorAndExit($"Error: File does not exist: {postPath}");
 
     BashlessBlog.DeleteEntry(postPath);
     Console.WriteLine($"Deleted {postPath}");
+}
+
+void doEdit()
+{
+    if (args.Length != 2)
+        errorAndExit("Error: Invalid arguments");
+
+    var postPath = args[1];
+
+    if (!File.Exists(postPath))
+        errorAndExit($"Error: File does not exist: {postPath}");
+
+    if (Directory.GetDirectoryRoot(postPath) == BashlessBlog.Config.DraftDir)
+        errorAndExit($"Error: Cannot depublish a post in the draft directory: {postPath}");
+
+    var draftPath = BashlessBlog.EditEntry(postPath);
+    Console.WriteLine($"Deleted {postPath} and created the draft {draftPath}");
+}
+
+// Print the error message, then print the help text, then exit
+void errorAndExit(string message)
+{
+    Console.WriteLine(message);
+    printHelp();
+    Environment.Exit(1);
 }
 
 void printHelp()

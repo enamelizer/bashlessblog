@@ -154,7 +154,7 @@ namespace bashlessblog
         // for only the output to be published instead of having all items accessable under '.\blog'
         // for default bashblog behavior, set these to empty
         public string BackupDir { get; private set; } = "backup";
-        public string DraftDir { get; private set; } = "drafts";
+        public string DraftDir { get; private set; } = "drafts";        // this can't be the same as the output dir
         public string IncludeDir { get; private set; } = "includes";
         public string OutputDir { get; private set; } = "output";
 
@@ -266,7 +266,7 @@ namespace bashlessblog
                     BackupDir = Directory.GetCurrentDirectory();
 
                 if (String.IsNullOrEmpty(DraftDir))
-                    DraftDir = Directory.GetCurrentDirectory();
+                    DraftDir = Path.Combine(Directory.GetCurrentDirectory(), "drafts");
 
                 if (String.IsNullOrEmpty(IncludeDir))
                     IncludeDir = Directory.GetCurrentDirectory();
@@ -321,15 +321,12 @@ namespace bashlessblog
             if (String.IsNullOrEmpty(GlobalEmail))
                 warnings.AppendLine("Config Warning: GlobalEmail is empty");
 
-            if (HeaderFile == ".header.html")
-                warnings.AppendLine("Config Warning: '.header.html' is the default 'HeaderFile' name and will be overwritten on rebuild");
-
-            if (FooterFile == ".footer.html")
-                warnings.AppendLine("Config Warning: '.footer.html' is the default 'FooterFile' name and will be overwritten on rebuild");
-
             // errors
             if (String.IsNullOrEmpty(GlobalUrl))
                 errors.AppendLine("Config Error: GlobalUrl cannot be empty");
+
+            if (DraftDir == OutputDir)
+                errors.AppendLine("Config Error: DraftDir cannot be the same as OutputDir");
 
             if (errors.Length > 0)
                 throw new Exception(warnings.ToString() + errors.ToString());

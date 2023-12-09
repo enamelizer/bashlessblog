@@ -239,6 +239,7 @@ namespace bashlessblog
             var title = String.Empty;
             var outputContent = new StringBuilder();
             var tags = new List<string>();
+            DateTime? creationDt = null;
             using (var reader = new StringReader(draftContent))
             {
                 // get title
@@ -257,11 +258,14 @@ namespace bashlessblog
                 {
                     outputContent.AppendLine(currentLine);        // add to output
                     currentLine = reader.ReadLine();        // get next line
+                    if (currentLine == null)
+                        break;
+
                     continue;
                 }
 
                 // process tags into the correct output of tags with links
-                if (currentLine.StartsWith("<p>" + Config.TemplateTagsLineHeader))
+                if (!String.IsNullOrEmpty(currentLine) && currentLine.StartsWith("<p>" + Config.TemplateTagsLineHeader))
                 {
                     // special tag extraction for drafts
                     var cleanLine = currentLine.Replace("<p>", "").Replace("</p>", "").Replace(Config.TemplateTagsLineHeader, "");
@@ -275,20 +279,33 @@ namespace bashlessblog
 
                     outputContent.Append(tagsLine.ToString());
                 }
+
+                // read until we get to the optional timestamp but don't add to content
+                while (String.IsNullOrEmpty(currentLine) || !currentLine.StartsWith("<!-- creationtime: "))
+                {
+                    currentLine = reader.ReadLine();        // get next line
+                    if (currentLine == null)
+                        break;
+
+                    continue;
+                }
+
+                // process timestamp
+                if (!String.IsNullOrEmpty(currentLine) && currentLine.StartsWith("<!-- creationtime: "))
+                    creationDt = ParseTimestampLine(currentLine);
             }
 
             var filename = CreateUniqueFilepath(Config.OutputDir, title, true);
 
             // we have everything we need to make the html file
             //create_html_page "$content" "$filename" no "$title" "$2" "$global_author"
-            CreateHtmlPage(outputContent.ToString(), filename, false, title);     // TODO handle timestamp on edit
+            CreateHtmlPage(outputContent.ToString(), filename, false, title, creationDt);     // TODO handle timestamp on edit
 
             // save markdown option
-            // TODO uncomment this when done testing
-            //if (Config.SaveMarkdown && Path.GetExtension(draftPath) == ".md")
-            //    File.Move(draftPath, Path.ChangeExtension(filename, ".md"));
-            //else
-            //    File.Delete(draftPath);
+            if (Config.SaveMarkdown && Path.GetExtension(draftPath) == ".md")
+                File.Move(draftPath, Path.ChangeExtension(filename, ".md"));
+            else
+                File.Delete(draftPath);
 
             // rebuild tags
             RebuildTags(tags);
@@ -318,6 +335,79 @@ namespace bashlessblog
                 File.Delete(Path.ChangeExtension(postPath, ".md"));
 
             RebuildTags(null);
+        }
+
+        /// <summary>
+        /// Creates a draft from a published post and depublishes the post
+        /// which deletes a published post and it's .md file if it exists
+        /// and then rebuilds tags
+        /// 
+        /// If there is an error an empty string is returned
+        /// </summary>
+        /// <remarks>
+        /// Assume error checking has already been done (file is not in draft dir, file exists, etc)
+        /// </remarks>
+        internal static string EditEntry(string postPath)
+        {
+            var htmlPath = Path.ChangeExtension(postPath, ".html");
+            var mdPath = Path.ChangeExtension(postPath, ".md");
+            var draftPath = String.Empty;
+
+            // no post to edit / depublish
+            if (!File.Exists(htmlPath))
+                return String.Empty;
+
+            // if there is an md file, copy it to the drafts dir
+            if(File.Exists(mdPath))
+            {
+                var title = GetPostTitle(mdPath);
+                draftPath = CreateUniqueFilepath(Config.DraftDir, title, false);
+                File.Copy(mdPath, draftPath, true);
+                
+                // append the post date to the draft
+                var creationDt = GetPostDate(htmlPath);
+                File.AppendAllText(draftPath, $"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->\n");
+            }
+            else // no md file, create a new draft from the html file content
+            {
+                var contentBuilder = new StringBuilder();
+                var title = GetPostTitle(htmlPath);
+
+                // add the title to the draft
+                contentBuilder.AppendLine($"<p>{title}</p>");
+
+                var htmlContent = GetHtmlFileContent(htmlPath, "text", "text", false);
+
+                // replace the tag line with the draft format and add the post date
+                var tags = TagsInPost(htmlPath);
+                var tagLine = $"<p>{Config.TemplateTagsLineHeader} {String.Join(", ", tags)}</p>";
+                using (var reader = new StringReader(htmlContent))
+                {
+                    while (true)
+                    {
+                        var line = reader.ReadLine();
+                        if (line == null)
+                            break;
+
+                        if (line.StartsWith($"<p>{Config.TemplateTagsLineHeader}"))
+                            contentBuilder.AppendLine(tagLine);
+                        else
+                            contentBuilder.AppendLine(line);
+                    }
+                }
+
+                // append the post date to the draft
+                var creationDt = GetPostDate(htmlPath);
+                contentBuilder.Append($"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->\n");
+
+                draftPath = CreateUniqueFilepath(Config.DraftDir, title, true);
+                File.WriteAllText(draftPath, contentBuilder.ToString());
+            }
+
+            // depublish the post
+            DeleteEntry(htmlPath);
+
+            return draftPath;
         }
 
         /// <summary>
@@ -444,7 +534,7 @@ namespace bashlessblog
 
                 // get post content for each file
                 foreach (var file in sortedFiles)
-                    tagFileContent.Append(GetHtmlFileContent(file, "entry", "entry"));
+                    tagFileContent.Append(GetHtmlFileContent(file, "entry", "entry", Config.CutDo));
 
                 // create the tag file
                 var tagFilePath = Path.Combine(Config.OutputDir, Config.PrefixTags + tag + ".html");
@@ -465,7 +555,7 @@ namespace bashlessblog
                     continue;
 
                 var title = GetPostTitle(file);
-                var content = GetHtmlFileContent(file, "text", "text");
+                var content = GetHtmlFileContent(file, "text", "text", false);
                 var creationDt = GetPostDate(file);
 
                 CreateHtmlPage(content, file, false, title, creationDt);
@@ -511,7 +601,7 @@ namespace bashlessblog
         /// <summary>
         /// Gets the contents of a published HTML post
         /// </summary>
-        private static string GetHtmlFileContent(string filePath, string begin, string end)
+        private static string GetHtmlFileContent(string filePath, string begin, string end, bool cutTags)
         {
             var beginText = $"<!-- {begin} begin -->";
             var endText = $"<!-- {end} end -->";
@@ -531,7 +621,7 @@ namespace bashlessblog
                 { // stop reading
                     break;
                 }
-                else if (startFound && Config.CutDo && line.Contains(Config.CutLine))
+                else if (startFound && cutTags && line.Contains(Config.CutLine))
                 {
                     // we found the cut line, inject "read more" here
                     cutFound = true;
@@ -702,30 +792,53 @@ namespace bashlessblog
             var lines = File.ReadAllLines(file);
             var creationDt = DateTime.MinValue;
             foreach (var line in lines)
-            {
-                if (line.StartsWith("<!-- creationtime: "))
-                {
-                    var dateString = line.Replace("<!-- creationtime: ", "").Replace(" -->", "");
-                    var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.None, out creationDt);
-                    if (!parsed)
-                        DateTime.TryParse(dateString, out creationDt);      // fallback
-                }
-                else if (line.StartsWith("<!-- bashblog_timestamp: #"))
-                {
-                    var dateString = line.Replace("<!-- bashblog_timestamp: #", "").Replace("# -->", "");
-                    var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestampLegacy, CultureInfo.InvariantCulture, DateTimeStyles.None, out creationDt);
-                    if (!parsed)
-                        DateTime.TryParse(dateString, out creationDt);      // fallback
-                }
-            }
+                if (line.StartsWith("<!-- creationtime: ") || line.StartsWith("<!-- bashblog_timestamp: #"))
+                    return ParseTimestampLine(line);
 
             return creationDt;
+        }
+
+        /// <summary>
+        /// Parses the timestamp line and returns the datetime
+        /// </summary>
+        private static DateTime ParseTimestampLine(string timestampLine)
+        { 
+            var timestamp = DateTime.MinValue;
+            if (timestampLine.StartsWith("<!-- creationtime: "))
+            {
+                var dateString = timestampLine.Replace("<!-- creationtime: ", "").Replace(" -->", "");
+                var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.None, out timestamp);
+                if (!parsed)
+                    DateTime.TryParse(dateString, out timestamp);      // fallback
+            }
+            else if (timestampLine.StartsWith("<!-- bashblog_timestamp: #"))
+            {
+                var dateString = timestampLine.Replace("<!-- bashblog_timestamp: #", "").Replace("# -->", "");
+                var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestampLegacy, CultureInfo.InvariantCulture, DateTimeStyles.None, out timestamp);
+                if (!parsed)
+                    DateTime.TryParse(dateString, out timestamp);      // fallback
+            }
+
+            return timestamp;
         }
 
         /// <summary>
         /// Gets the post title
         /// </summary>
         private static string GetPostTitle(string file)
+        {
+            if (Path.GetExtension(file) == ".md")
+                return GetPostTitleFromMarkdown(file);
+            else if (Path.GetExtension(file) == ".html")
+                return GetPostTitleFromHtml(file);
+
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// For html the post title is the first line between the h3 and a class="ablack" tags
+        /// </summary>
+        private static string GetPostTitleFromHtml(string file)
         {
             var lines = File.ReadAllLines(file);
             var foundTitleMarker = false;
@@ -741,6 +854,14 @@ namespace bashlessblog
             }
 
             return String.Empty;
+        }
+
+        /// <summary>
+        /// For markdown the post title is the first line
+        /// </summary>
+        private static string GetPostTitleFromMarkdown(string file)
+        {
+            return File.ReadAllLines(file).FirstOrDefault() ?? String.Empty;
         }
     }
 }
