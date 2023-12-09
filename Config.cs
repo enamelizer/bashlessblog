@@ -63,10 +63,9 @@ namespace bashlessblog
         // please make sure that no other html file starts with this prefix
         public string PrefixTags { get; private set; } = "tag_";
 
-        // personalized header and footer (only if you know what you're doing)
-        // leave blank to generate them, recommended
-        public string HeaderFile { get; private set; } = String.Empty;
-        public string FooterFile { get; private set; } = String.Empty;
+        // if these files do not exist, defaults are generated
+        public string HeaderFile { get; private set; } = "includes\\.header.html";
+        public string FooterFile { get; private set; } = "includes\\.footer.html";
 
         // extra content to add just after we open the <body> tag
         // and before the actual blog content
@@ -80,8 +79,8 @@ namespace bashlessblog
         public string BodyBeginFileIndex { get; private set; } = String.Empty;
 
         // CSS files to include on every page, f.ex. css_include=('main.css' 'blog.css')
-        // leave empty to use generated
-        public List<string> CssInclude { get; private set; } = new List<string> { };
+        // if the file(s) do not exist, they are generated
+        public List<string> CssInclude { get; private set; } = new List<string> { "includes\\blog.css" };
 
         // HTML files to exclude from index, f.ex. post_exclude=('imprint.html 'aboutme.html')
         public List<string> HtmlExclude { get; private set; } = new List<string> { };
@@ -238,15 +237,17 @@ namespace bashlessblog
                 }
                 else if(key == "CssInclude")
                 {
-                    var files = value.Replace("\'", "").Replace("\"", "").Split(".css", StringSplitOptions.RemoveEmptyEntries);
+                    CssInclude = new List<string>();
+                    var files = value.Replace("\'", "").Replace("\"", "").Replace("(", "").Replace(")", "").Split(" ", StringSplitOptions.RemoveEmptyEntries);
                     foreach (var file in files)
-                        CssInclude.Add(file + ".css");
+                        CssInclude.Add(file);
                 }
                 else if (key == "HtmlExclude")
                 {
-                    var files = value.Replace("\'", "").Replace("\"", "").Split(".html", StringSplitOptions.RemoveEmptyEntries);
+                    HtmlExclude = new List<string>();
+                    var files = value.Replace("\'", "").Replace("\"", "").Replace("(", "").Replace(")", "").Split(" ", StringSplitOptions.RemoveEmptyEntries);
                     foreach (var file in files)
-                        HtmlExclude.Add(file + ".html");
+                        HtmlExclude.Add(file);
                 }
                 else if (key == "DateLocale")
                 {

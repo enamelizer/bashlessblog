@@ -82,7 +82,7 @@ try
         // creates a draft file using the optional title
         // in the format specified
         // the first half of write_entry up until the editor opens
-       doNew();
+        doNew();
     }
     else if (firstArg == "post")        // post
     {
@@ -92,15 +92,12 @@ try
     }
     else if (firstArg == "rebuild")
     {
-        // rebuild all entries
-        BashlessBlog.RebuildAllEntries();
-
-        // rebuild tags
-        BashlessBlog.RebuildTags(null);
+        // rebuild all entries and tags
+        BashlessBlog.Rebuild();
     }
     else if (firstArg == "delete")
     {
-
+        doDelete();
     }
 }
 catch (Exception e)
@@ -147,7 +144,6 @@ void doPost()
     // post a draft to the blog
     // the second half of write_entry
     // TODO preview?
-    var draftPath = String.Empty;
     if (args.Length != 2)
     {
         Console.WriteLine("Error: Invalid arguments");
@@ -155,7 +151,7 @@ void doPost()
         return;
     }
 
-    draftPath = args[1];
+    var draftPath = args[1];
 
     if (!File.Exists(draftPath))
     {
@@ -166,6 +162,28 @@ void doPost()
 
     var filename = BashlessBlog.WriteEntry(draftPath);
     Console.WriteLine($"Post written to {filename}");
+}
+
+void doDelete()
+{
+    if (args.Length != 2)
+    {
+        Console.WriteLine("Error: Invalid arguments");
+        printHelp();
+        return;
+    }
+
+    var postPath = args[1];
+
+    if (!File.Exists(postPath))
+    {
+        Console.WriteLine($"Error: File does not exist: {postPath}");
+        printHelp();
+        return;
+    }
+
+    BashlessBlog.DeleteEntry(postPath);
+    Console.WriteLine($"Deleted {postPath}");
 }
 
 void printHelp()
@@ -179,14 +197,13 @@ void printHelp()
                                                '-html' overrides the default behavior and creates an HTML draft
                                                'title' will override the default title with the supplied title, the title must be in quotes
                    
-                       edit [filename]         create a draft from a previously posted post
-                                               this will remove the post from the blog and rebuild the blog
+                       edit [filename]         create a draft from a published post and depublish the post
                    
-                       post [filename]         publishes a draft from the drafts folder
+                       post [filename]         publishes a draft post to the blog
                                                if the title of a previously posted entry changes, the filename will change to match
                                                this operation rebuilds the blog
                    
-                       delete [filename]       deletes the post and rebuilds the blog
+                       delete [filename]       delete a published the post
                    
                        rebuild                 regenerates all the pages and posts, preserving the content of the entries
                    
