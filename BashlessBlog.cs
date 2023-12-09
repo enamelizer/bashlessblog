@@ -305,9 +305,19 @@ namespace bashlessblog
             RebuildTags(null);
         }
 
+        /// <summary>
+        /// Deletes a published post and it's .md file if it exists
+        /// then rebuilds tags
+        /// </summary>
         internal static void DeleteEntry(string postPath)
         {
-            throw new NotImplementedException();
+            if (File.Exists(postPath))
+                File.Delete(postPath);
+
+            if (File.Exists(Path.ChangeExtension(postPath, ".md")))
+                File.Delete(Path.ChangeExtension(postPath, ".md"));
+
+            RebuildTags(null);
         }
 
         /// <summary>
