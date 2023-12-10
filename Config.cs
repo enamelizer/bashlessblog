@@ -137,7 +137,7 @@ namespace bashlessblog
                                                                                                 // fucking up dates on rebuilds
                                                                                                 // TODO: it is also used in RSS so figure that out
         public string DateFormatTimestamp { get; private set; } = "yyyyMMddTHHmmss";
-        public string DateAllpostsHeader { get; private set; } = "MMMM yyyy";
+        public string DateAllPostsHeader { get; private set; } = "MMMM yyyy";
 
 
         // bashblog defaults, used for converting old posts to the new format
@@ -165,7 +165,7 @@ namespace bashlessblog
             public static readonly string GlobalSoftwareName = "bashlessblog";
             public static readonly string GlobalSoftwareVersion = "0.1";
 
-            // this is the internal/parsed version of DateLocal
+            // this is the internal/parsed version of DateLocale
             public static CultureInfo DateCulture { get; set; } = CultureInfo.CurrentCulture;
         }
 

@@ -436,6 +436,52 @@ namespace bashlessblog
         }
 
         /// <summary>
+        /// Creates an index page with all posts
+        /// </summary>
+        internal static void AllPosts()
+        {
+            // get a sorted list of files in the output directory sorted by the date embedded in the file
+            // excludes boilerplate files
+            var files = Directory.GetFiles(Config.OutputDir, "*.html")
+                            .Where(f => !IsBoilerplateFile(f))
+                            .OrderByDescending(GetPostDate)
+                            .ToList();
+
+            var contentBuilder = new StringBuilder();
+            contentBuilder.AppendLine($"<h3>{Config.TemplateArchiveTitle}</h3>");
+
+
+            var prevMonth = String.Empty;
+            foreach (var file in files)
+            {
+                var postDate = GetPostDate(file);
+                var currentMonth = postDate.ToString(Config.DateAllPostsHeader, Config.Internal.DateCulture);
+
+                // month headers
+                if (currentMonth != prevMonth)
+                {
+                    // dont close ul before the first header
+                    if (!String.IsNullOrEmpty(prevMonth))
+                        contentBuilder.AppendLine("</ul>");
+
+                    contentBuilder.AppendLine($"<h4 class='allposts_header'>{currentMonth}</h4>");
+                    contentBuilder.AppendLine("<ul>");
+                    prevMonth = currentMonth;
+                }
+
+                // title and date
+                var title = GetPostTitle(file);
+                contentBuilder.AppendLine($"<li><a href=\"./{Path.GetFileName(file)}\">{title}</a> &mdash; {postDate.ToString(Config.DateFormat, Config.Internal.DateCulture)}</li>");
+            }
+
+            // close the last ul
+            contentBuilder.AppendLine("</ul>");
+            contentBuilder.AppendLine($"<div id=\"all_posts\"><a href=\"./{Config.IndexFile}\">{Config.TemplateArchiveIndexPage}</a></div>");
+
+            CreateHtmlPage(contentBuilder.ToString(), Path.Combine(Config.OutputDir, Config.ArchiveIndex), true, $"{Config.GlobalTitle} &mdash; {Config.TemplateArchiveTitle}");
+        }
+
+        /// <summary>
         /// Creates an HTML page
         /// </summary>
         /// <param name="content">The HTML content for the body of the page</param>

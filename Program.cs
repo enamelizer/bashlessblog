@@ -102,6 +102,7 @@ try
     }
 
     BashlessBlog.RebuildIndex();
+    BashlessBlog.AllPosts();
 }
 catch (Exception e)
 {
