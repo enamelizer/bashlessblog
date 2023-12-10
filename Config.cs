@@ -148,7 +148,7 @@ namespace bashlessblog
         // same as global_url by default
         // You can change it to path on your computer, if you write posts locally
         // before copying them to the server
-        public string PreviewUrl { get; private set; } = String.Empty;
+        public string PreviewUrl { get; private set; } = String.Empty;  // TODO there is currently no preview functionality
 
         // organization, espcially separating the input files from the ouput and allowing
         // for only the output to be published instead of having all items accessable under '.\blog'

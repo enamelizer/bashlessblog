@@ -886,7 +886,7 @@ namespace bashlessblog
             var lines = File.ReadAllLines(file);
             var creationDt = DateTime.MinValue;
             foreach (var line in lines)
-                if (line.StartsWith("<!-- creationtime: ") || line.StartsWith("<!-- bashblog_timestamp: #"))
+                if (line.StartsWith("<!-- creationtime: ") || line.StartsWith($"<!-- {Config.DateInpostLegacy}: #"))
                     return ParseTimestampLine(line);
 
             return creationDt;
@@ -905,9 +905,9 @@ namespace bashlessblog
                 if (!parsed)
                     DateTime.TryParse(dateString, out timestamp);      // fallback
             }
-            else if (timestampLine.StartsWith("<!-- bashblog_timestamp: #"))
+            else if (timestampLine.StartsWith($"<!-- {Config.DateInpostLegacy}: #"))
             {
-                var dateString = timestampLine.Replace("<!-- bashblog_timestamp: #", "").Replace("# -->", "");
+                var dateString = timestampLine.Replace($"<!-- {Config.DateInpostLegacy}: #", "").Replace("# -->", "");
                 var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestampLegacy, CultureInfo.InvariantCulture, DateTimeStyles.None, out timestamp);
                 if (!parsed)
                     DateTime.TryParse(dateString, out timestamp);      // fallback
