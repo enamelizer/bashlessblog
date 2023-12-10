@@ -570,6 +570,7 @@ namespace bashlessblog
         /// <summary>
         /// Rebuilds tags, either the tag pages represented by the tags list
         /// or all tags if the tags list is null
+        /// Also rebuild the all_tags index page
         /// </summary>
         private static void RebuildTags(List<string>? tags)
         {
@@ -592,8 +593,13 @@ namespace bashlessblog
             // get the mapping of tags to files
             var tagFileMapping = PostsWithTags(tags);
 
+            // content for the all_tags index page
+            var allTagsContent = new StringBuilder();
+            allTagsContent.AppendLine($"<h3>{Config.TemplateTagsTitle}</h3>");
+            allTagsContent.AppendLine("<ul>");
+
             // for each file associated with the tag, get the file content for the tag file
-            foreach(var tagMapping in tagFileMapping)
+            foreach (var tagMapping in tagFileMapping)
             {
                 var tag = tagMapping.Key;
                 var tagFileContent = new StringBuilder();
@@ -611,7 +617,24 @@ namespace bashlessblog
                 var tagFilePath = Path.Combine(Config.OutputDir, Config.PrefixTags + tag + ".html");
                 var tagFileTitle = $"{Config.GlobalTitle} &mdash; {Config.TemplateTagTitle} \"{tag}\"";
                 CreateHtmlPage(tagFileContent.ToString(), tagFilePath, true, tagFileTitle);
+
+                // all_tags index page content
+                var numPosts = sortedFiles.Count;
+                var postStr = Config.TemplateTagsPosts;
+                if (numPosts == 1)
+                    postStr = Config.TemplateTagsPostsSingular;
+                else if(2 <= numPosts && numPosts <= 4)
+                    postStr = Config.TemplateTagsPosts2_4;
+
+                allTagsContent.AppendLine($"<li><a href=\"{Path.GetFileName(tagFilePath)}\">{tag}</a> &mdash; {numPosts} {postStr}</li>");
             }
+
+            // close the all_tags list
+            allTagsContent.AppendLine("</ul>");
+            allTagsContent.AppendLine($"<div id=\"all_posts\"><a href=\"./{Config.IndexFile}\">{Config.TemplateArchiveIndexPage}</a></div>");
+
+            // create the all_tags index page
+            CreateHtmlPage(allTagsContent.ToString(), Path.Combine(Config.OutputDir, Config.TagsIndex), true, $"{Config.GlobalTitle} &mdash; {Config.TemplateTagsTitle}");
         }
 
         /// <summary>
@@ -745,9 +768,9 @@ namespace bashlessblog
         /// 
         /// If tags is null, all tags in all posts are returned
         /// </summary>
-        private static Dictionary<string, List<string>> PostsWithTags(List<string>? tags)
+        private static SortedDictionary<string, List<string>> PostsWithTags(List<string>? tags)
         {
-            var tagFileMapping = new Dictionary<string, List<string>>();
+            var tagFileMapping = new SortedDictionary<string, List<string>>();
 
             // get all html files from the output directory that don't start with the tag prefix
             var fileList = Directory.GetFiles(Config.OutputDir, "*.html");
