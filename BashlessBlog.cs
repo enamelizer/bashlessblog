@@ -411,13 +411,38 @@ namespace bashlessblog
         }
 
         /// <summary>
+        /// Rebuilds the index page
+        /// </summary>
+        internal static void RebuildIndex()
+        {
+            // get a sorted list of files in the output directory sorted by the date embedded in the file
+            // excludes boilerplate files and takes the number of index articles specified in the config
+            var files = Directory.GetFiles(Config.OutputDir, "*.html")
+                            .Where(f => !IsBoilerplateFile(f))
+                            .OrderByDescending(GetPostDate)
+                            .Take(Config.NumberOfIndexArticles)
+                            .ToList();
+
+            // get the content for each file up to Config.NumberOfIndexArticles
+            var contentBuilder = new StringBuilder();
+            foreach (var file in files)
+                contentBuilder.AppendLine(GetHtmlFileContent(file, "entry", "entry", Config.CutDo));
+
+            // add the rss feed line
+            contentBuilder.AppendLine($"<div id=\"all_posts\"><a href=\"{Config.ArchiveIndex}\">{Config.TemplateArchive}</a> &mdash; <a href=\"{Config.TagsIndex}\">{Config.TemplateTagsTitle}</a> &mdash; <a href=\"{Config.BlogFeed}\">{Config.TemplateSubscribe}</a></div>");
+
+            // create the index file
+            CreateHtmlPage(contentBuilder.ToString(), Path.Combine(Config.OutputDir, Config.IndexFile), true, Config.GlobalTitle);
+        }
+
+        /// <summary>
         /// Creates an HTML page
         /// </summary>
         /// <param name="content">The HTML content for the body of the page</param>
         /// <param name="filepath">The filename to write to</param>
         /// <param name="generateIndex">true to generate the index page, false to write a normal post</param>
         /// <param name="title">The title of the post, without HTML decoration</param>
-        /// <param name="timestamp">Optional timestamp to use instead of now</param>
+        /// <param name="timestamp">Optional timestamp to use instead of now, passing null makes it now</param>
         private static void CreateHtmlPage(string content, string filepath, bool generateIndex, string title, DateTime? timestamp = null)
         {
             var htmlBuilder = new StringBuilder();
@@ -768,7 +793,7 @@ namespace bashlessblog
 
             if (filename == Path.GetFileName(Config.IndexFile) ||
                 filename == Path.GetFileName(Config.ArchiveIndex) ||
-                filename == Path.GetFileName(Config.TagIndex) ||
+                filename == Path.GetFileName(Config.TagsIndex) ||
                 filename == Path.GetFileName(Config.FooterFile) ||
                 filename == Path.GetFileName(Config.HeaderFile) ||
                 filename == Path.GetFileName(".header.html") ||

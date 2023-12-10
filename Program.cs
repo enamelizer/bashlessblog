@@ -52,21 +52,21 @@ try
     // do the easy things (no writes)
     if (firstArg == "list")
     {
-
+        // TODO
     }
     else if (firstArg == "tags")
     {
-
+        // TODO
     }
     else if (firstArg == "help")
     {
-
+        // TODO
     }
 
     // backup the blog
     BashlessBlog.Backup();
 
-    // create or copy css files if needed
+    // create or copy css files
     BashlessBlog.CreateCss();
 
     // create or copy includes
@@ -100,6 +100,8 @@ try
         // create a draft from a published post and depublish the post
         doEdit();
     }
+
+    BashlessBlog.RebuildIndex();
 }
 catch (Exception e)
 {

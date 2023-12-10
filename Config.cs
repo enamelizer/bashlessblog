@@ -36,7 +36,7 @@ namespace bashlessblog
 
         // post archive
         public string ArchiveIndex { get; private set; } = "all_posts.html";
-        public string TagIndex { get; private set; } = "all_tags.html";
+        public string TagsIndex { get; private set; } = "all_tags.html";
 
         // Non blogpost files. Bashlessblog will ignore these. Useful for static pages and custom content
         // Add them as a bash array, e.g. non_blogpost_files=("news.html" "test.html")
