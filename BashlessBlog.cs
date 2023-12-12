@@ -363,10 +363,23 @@ namespace bashlessblog
                 var title = GetPostTitle(mdPath);
                 draftPath = CreateUniqueFilepath(Config.DraftDir, title, false);
                 File.Copy(mdPath, draftPath, true);
-                
+
                 // append the post date to the draft
-                var creationDt = GetPostDate(htmlPath);
-                File.AppendAllText(draftPath, $"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->\n");
+                var writeCreationDt = true;
+                foreach (var line in File.ReadLines(draftPath))
+                {
+                    if (line.StartsWith($"<!-- creationtime: "))
+                    {
+                        writeCreationDt = false;
+                        break;
+                    }
+                }
+
+                if (writeCreationDt)
+                {
+                    var creationDt = GetPostDate(htmlPath);
+                    File.AppendAllText(draftPath, $"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->\n");
+                }
             }
             else // no md file, create a new draft from the html file content
             {
@@ -381,6 +394,7 @@ namespace bashlessblog
                 // replace the tag line with the draft format and add the post date
                 var tags = TagsInPost(htmlPath);
                 var tagLine = $"<p>{Config.TemplateTagsLineHeader} {String.Join(", ", tags)}</p>";
+                var writeCreationDt = true;
                 using (var reader = new StringReader(htmlContent))
                 {
                     while (true)
@@ -393,12 +407,18 @@ namespace bashlessblog
                             contentBuilder.AppendLine(tagLine);
                         else
                             contentBuilder.AppendLine(line);
+
+                        if (line.StartsWith($"<!-- creationtime: "))
+                            writeCreationDt = false;
                     }
                 }
 
-                // append the post date to the draft
-                var creationDt = GetPostDate(htmlPath);
-                contentBuilder.Append($"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->\n");
+                if (writeCreationDt)
+                {
+                    // append the post date to the draft
+                    var creationDt = GetPostDate(htmlPath);
+                    contentBuilder.Append($"<!-- creationtime: {creationDt.ToString(Config.DateFormatTimestamp, CultureInfo.InvariantCulture)} -->\n");
+                }
 
                 draftPath = CreateUniqueFilepath(Config.DraftDir, title, true);
                 File.WriteAllText(draftPath, contentBuilder.ToString());
@@ -482,6 +502,56 @@ namespace bashlessblog
         }
 
         /// <summary>
+        /// Creates the RSS feed
+        /// </summary>
+        internal static void MakeRss()
+        {
+            var pubDate = DateTime.UtcNow.ToString(Config.DateFormatFull, CultureInfo.InvariantCulture);
+            var rssBuilder = new StringBuilder();
+            rssBuilder.AppendLine($"""
+                                   <?xml version="1.0" encoding="UTF-8"?>
+                                   <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+                                   <channel><title>{Config.GlobalTitle}</title><link>{Config.GlobalUrl}/{Config.IndexFile}</link>
+                                   <description>{Config.GlobalDescription}</description><language>en</language>
+                                   <lastBuildDate>{pubDate}</lastBuildDate>
+                                   <pubDate>{pubDate}</pubDate>
+                                   <atom:link href="{Config.GlobalUrl}/{Config.BlogFeed}" rel="self" type="application/rss+xml" />
+                                   """);
+
+            // get a sorted list of files in the output directory sorted by the date embedded in the file
+            // excludes boilerplate files
+            var files = Directory.GetFiles(Config.OutputDir, "*.html")
+                            .Where(f => !IsBoilerplateFile(f))
+                            .OrderByDescending(GetPostDate)
+                            .ToList();
+
+            foreach (var file in files)
+            {
+                var title = GetPostTitle(file);
+                var author = GetPostAuthor(file);
+                var postDate = GetPostDate(file).ToString(Config.DateFormatFull, Config.Internal.DateCulture);
+                var postContent = GetHtmlFileContent(file, "text", "entry", Config.CutDo);
+                rssBuilder.AppendLine($"""
+                                       <item>
+                                       <title>{title}</title>
+                                       <description><![CDATA[
+                                       {postContent}
+                                       ]]>
+                                       </description>
+                                       <link>{Config.GlobalUrl}/{Path.GetFileName(file)}</link>
+                                       <guid>{Config.GlobalUrl}/{Path.GetFileName(file)}</guid>
+                                       <dc:creator>{author}</dc:creator>
+                                       <pubDate>{postDate}</pubDate>
+                                       </item>
+                                       """);
+            }
+
+            rssBuilder.AppendLine("</channel></rss>");
+
+            File.WriteAllText(Path.Combine(Config.OutputDir, Config.BlogFeed), rssBuilder.ToString());
+        }
+
+        /// <summary>
         /// Creates an HTML page
         /// </summary>
         /// <param name="content">The HTML content for the body of the page</param>
@@ -489,7 +559,7 @@ namespace bashlessblog
         /// <param name="generateIndex">true to generate the index page, false to write a normal post</param>
         /// <param name="title">The title of the post, without HTML decoration</param>
         /// <param name="timestamp">Optional timestamp to use instead of now, passing null makes it now</param>
-        private static void CreateHtmlPage(string content, string filepath, bool generateIndex, string title, DateTime? timestamp = null)
+        private static void CreateHtmlPage(string content, string filepath, bool generateIndex, string title, DateTime? timestamp = null, string? author = null)
         {
             var htmlBuilder = new StringBuilder();
 
@@ -526,7 +596,7 @@ namespace bashlessblog
                 htmlBuilder.AppendLine("</a></h3>");
 
                 // use the input timestamp if it is not null or default
-                var creationDt = DateTime.Now;
+                var creationDt = DateTime.UtcNow;
                 if (timestamp != null && timestamp != DateTime.MinValue)
                     creationDt = (DateTime)timestamp;
 
@@ -535,8 +605,12 @@ namespace bashlessblog
 
                 // date and author
                 htmlBuilder.Append($"<div class=\"subtitle\">{creationDt.ToString(Config.DateFormat, Config.Internal.DateCulture)}");
-                if (!String.IsNullOrEmpty(Config.GlobalAuthor))
+
+                if (String.IsNullOrEmpty(author))
                     htmlBuilder.Append($" &mdash; \n{Config.GlobalAuthor}\n");
+                else
+                    htmlBuilder.Append($" &mdash; \n{author}\n");
+
                 htmlBuilder.Append("</div>\n");
                 htmlBuilder.AppendLine("<!-- text begin -->");
             }
@@ -649,10 +723,11 @@ namespace bashlessblog
                     continue;
 
                 var title = GetPostTitle(file);
+                var author = GetPostAuthor(file);
                 var content = GetHtmlFileContent(file, "text", "text", false);
                 var creationDt = GetPostDate(file);
 
-                CreateHtmlPage(content, file, false, title, creationDt);
+                CreateHtmlPage(content, file, false, title, creationDt, author);
             }
         }
 
@@ -893,24 +968,31 @@ namespace bashlessblog
         }
 
         /// <summary>
-        /// Parses the timestamp line and returns the datetime
+        /// Parses the timestamp line and returns the datetime in universal time
         /// </summary>
+        /// <remarks>
+        /// New style timestamps are universal
+        /// Old style time stamps are parsed using the DateCulture set in the configuration
+        /// By default the DateCulture is the current culture of the machine
+        /// </remarks>
         private static DateTime ParseTimestampLine(string timestampLine)
         { 
             var timestamp = DateTime.MinValue;
             if (timestampLine.StartsWith("<!-- creationtime: "))
             {
                 var dateString = timestampLine.Replace("<!-- creationtime: ", "").Replace(" -->", "");
-                var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.None, out timestamp);
+                var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out timestamp);
                 if (!parsed)
                     DateTime.TryParse(dateString, out timestamp);      // fallback
             }
             else if (timestampLine.StartsWith($"<!-- {Config.DateInpostLegacy}: #"))
             {
                 var dateString = timestampLine.Replace($"<!-- {Config.DateInpostLegacy}: #", "").Replace("# -->", "");
-                var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestampLegacy, CultureInfo.InvariantCulture, DateTimeStyles.None, out timestamp);
+                var parsed = DateTime.TryParseExact(dateString, Config.DateFormatTimestampLegacy, Config.Internal.DateCulture, DateTimeStyles.AssumeLocal, out timestamp);
                 if (!parsed)
                     DateTime.TryParse(dateString, out timestamp);      // fallback
+
+                timestamp = timestamp.ToUniversalTime();
             }
 
             return timestamp;
@@ -941,10 +1023,31 @@ namespace bashlessblog
             foreach (var line in lines)
             {
                 if (foundTitleMarker)
-                    return line; //.Replace("\n", "");
+                    return line;
 
                 if (line.StartsWith("<h3><a class=\"ablack\""))
                     foundTitleMarker = true;
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// For html the post title is the first line between the <div class="subtitle"> tags
+        /// </summary>
+        private static string GetPostAuthor(string file)
+        {
+            var lines = File.ReadAllLines(file);
+            var foundAuthorMarker = false;
+
+            // the title is on it's own line bewteen the <div class="subtitle"> tags
+            foreach (var line in lines)
+            {
+                if (foundAuthorMarker)
+                    return line;
+
+                if (line.StartsWith("<div class=\"subtitle\">"))
+                    foundAuthorMarker = true;
             }
 
             return String.Empty;

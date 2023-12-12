@@ -133,9 +133,7 @@ namespace bashlessblog
         public string DateLocale { get; private set; } = String.Empty;
 
         // Don't change these dates
-        //public string DateFormatFull { get; private set; } = "%a, %d %b %Y %H:%M:%S %z";      // this is what is fed into the 'date' util and is
-                                                                                                // fucking up dates on rebuilds
-                                                                                                // TODO: it is also used in RSS so figure that out
+        public string DateFormatFull { get; private set; } = "r";
         public string DateFormatTimestamp { get; private set; } = "yyyyMMddTHHmmss";
         public string DateAllPostsHeader { get; private set; } = "MMMM yyyy";
 

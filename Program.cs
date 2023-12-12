@@ -103,6 +103,7 @@ try
 
     BashlessBlog.RebuildIndex();
     BashlessBlog.AllPosts();
+    BashlessBlog.MakeRss();
 }
 catch (Exception e)
 {
@@ -183,7 +184,7 @@ void doEdit()
         errorAndExit($"Error: Cannot depublish a post in the draft directory: {postPath}");
 
     var draftPath = BashlessBlog.EditEntry(postPath);
-    Console.WriteLine($"Deleted {postPath} and created the draft {draftPath}");
+    Console.WriteLine($"Deleted {Path.GetFileNameWithoutExtension(postPath)} and created the draft {draftPath}");
 }
 
 // Print the error message, then print the help text, then exit
