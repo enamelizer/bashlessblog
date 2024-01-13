@@ -118,8 +118,6 @@ namespace bashlessblog
         // "Subscribe to this page..." (used as text for browser feed button that is embedded to html)
         public string TemplateSubscribeBrowserButton { get; private set; } = "Subscribe to this page...";
 
-        // TODO convert all this to .net date formatting
-        // TODO handle date_inpost, use this instead of the file dates and extend to have last modified
         // date formatting
         // The format to use for the dates displayed on screen using c# conventions, see:
         // https://learn.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings
@@ -142,11 +140,14 @@ namespace bashlessblog
         public string DateInpostLegacy { get; private set; } = "bashblog_timestamp";
         public string DateFormatTimestampLegacy { get; private set; } = "yyyyMMddHHmm.ss"; //"%Y%m%d%H%M.%S";
 
+        // TODO add preview functionality
+        // this would have to happen between writing the post and rebuilding the blog to publish it
+
         // URL where you can view the post while it's being edited
         // same as global_url by default
         // You can change it to path on your computer, if you write posts locally
         // before copying them to the server
-        public string PreviewUrl { get; private set; } = String.Empty;  // TODO there is currently no preview functionality
+        //public string PreviewUrl { get; private set; } = String.Empty;
 
         // organization, espcially separating the input files from the ouput and allowing
         // for only the output to be published instead of having all items accessable under '.\blog'
@@ -197,7 +198,7 @@ namespace bashlessblog
                 if (key.Contains('_'))
                     key = ConvertConfigKey(key);
 
-                // set non-string properties
+                // parse non-string properties
                 if (key == "NumberOfIndexArticles")
                 {
                     NumberOfIndexArticles = Convert.ToInt32(value);
@@ -319,6 +320,15 @@ namespace bashlessblog
             if (String.IsNullOrEmpty(GlobalEmail))
                 warnings.AppendLine("Config Warning: GlobalEmail is empty");
 
+            if (!ValidateIncludeList(CssInclude))
+                warnings.AppendLine("Config Warning: Css file(s) not found, using default 'blog.css'");
+
+            if (!File.Exists(HeaderFile))
+                warnings.AppendLine("Config Warning: Header file not found, using default '.header.html'");
+
+            if (!File.Exists(FooterFile))
+                warnings.AppendLine("Config Warning: Header file not found, using default '.footer.html'");
+
             // errors
             if (String.IsNullOrEmpty(GlobalUrl))
                 errors.AppendLine("Config Error: GlobalUrl cannot be empty");
@@ -330,6 +340,27 @@ namespace bashlessblog
                 throw new Exception(warnings.ToString() + errors.ToString());
 
             return warnings.ToString();
+        }
+
+        // validate and include list
+        private bool ValidateIncludeList(List<string> filePathList)
+        {
+            // no icludes is valid, defaults are used
+            if (filePathList.Count == 0)
+                return true;
+
+            // if one file in the list is
+            var fileFound = false;
+            foreach (var file in filePathList)
+            {
+                if (File.Exists(file))
+                {
+                    fileFound = true;
+                    break;
+                }
+            }
+
+            return fileFound;
         }
     }
 }

@@ -34,7 +34,6 @@ try
     // tags         - displays a list of tags
     // delete       - deletes a published post or draft
     // help         - prints help
-    // TODO reset?
     if (args.Length < 1)
     {
         printHelp();
@@ -60,7 +59,7 @@ try
     }
     else if (firstArg == "help")
     {
-        // TODO
+        printHelp();
     }
 
     // backup the blog
@@ -87,8 +86,8 @@ try
     }
     else if (firstArg == "rebuild")
     {
-        // rebuild all entries and tags
-        BashlessBlog.Rebuild();
+        // rebuild all entries and tags, optionally css and includes
+        doRebuild();
     }
     else if (firstArg == "delete")
     {
@@ -143,7 +142,7 @@ void doPost()
 {
     // post a draft to the blog
     // the second half of write_entry
-    // TODO preview?
+    // TODO add preview functionality
     if (args.Length != 2)
         errorAndExit("Error: Invalid arguments");
 
@@ -154,6 +153,15 @@ void doPost()
 
     var filename = BashlessBlog.WriteEntry(draftPath);
     Console.WriteLine($"Post written to {filename}");
+}
+
+void doRebuild()
+{
+    if (args.Length > 1)
+        if (args.Contains("-all"))
+            BashlessBlog.Rebuild(true);
+
+    BashlessBlog.Rebuild(false);
 }
 
 void doDelete()
@@ -214,7 +222,8 @@ void printHelp()
                    
                        delete [filename]       delete a published the post
                    
-                       rebuild                 regenerates all the pages and posts, preserving the content of the entries
+                       rebuild [-all]          regenerates all the pages and posts, preserving the content of the entries
+                                               '-all' will regernerate the CSS, title, header, and footer files (caution: custom and edited files will be deleted!)
                    
                        list                    list all posts
                    

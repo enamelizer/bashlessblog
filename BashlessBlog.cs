@@ -25,7 +25,7 @@ namespace bashlessblog
         }
 
         /// <summary>
-        /// Create a backup of all files, skipping the backup directory
+        /// Create a backup of all files, skipping the backup directory and other backup files
         /// </summary>
         internal static void Backup()
         {
@@ -48,7 +48,6 @@ namespace bashlessblog
 
             // create backup
             var backupPath = Path.Combine(backupDir, "backup-" + DateTime.Now.ToString("yyyyMMddTHHmmss") + ".zip");
-
             using (var archive = ZipFile.Open(backupPath, ZipArchiveMode.Create))
             {
                 foreach (var path in fileSet)
@@ -68,6 +67,7 @@ namespace bashlessblog
                     File.Delete(path);
             }
         }
+
         /// <summary>
         /// Create the default .css file if overrides are not defined 
         /// in the config or they do not already exist
@@ -89,6 +89,7 @@ namespace bashlessblog
             if (!cssFound)
             {
                 var blogCssPath = Path.Combine(Config.IncludeDir, "blog.css");
+                Config.CssInclude.Clear();
                 Config.CssInclude.Add(blogCssPath);
 
                 if (!Directory.Exists(Config.IncludeDir))
@@ -299,7 +300,7 @@ namespace bashlessblog
 
             // we have everything we need to make the html file
             //create_html_page "$content" "$filename" no "$title" "$2" "$global_author"
-            CreateHtmlPage(outputContent.ToString(), filename, false, title, creationDt);     // TODO handle timestamp on edit
+            CreateHtmlPage(outputContent.ToString(), filename, false, title, creationDt);
 
             // save markdown option
             if (Config.SaveMarkdown && Path.GetExtension(draftPath) == ".md")
@@ -316,8 +317,16 @@ namespace bashlessblog
         /// <summary>
         /// Rebuilds all posts and tags
         /// </summary>
-        internal static void Rebuild()
+        internal static void Rebuild(bool rebuildAll = false)
         {
+            if (rebuildAll)
+            {
+                DeleteCss();
+                DeleteIncludes();
+                CreateCss();
+                CreateIncludes();
+            }
+
             RebuildAllEntries();
             RebuildTags(null);
         }
@@ -470,7 +479,6 @@ namespace bashlessblog
             var contentBuilder = new StringBuilder();
             contentBuilder.AppendLine($"<h3>{Config.TemplateArchiveTitle}</h3>");
 
-
             var prevMonth = String.Empty;
             foreach (var file in files)
             {
@@ -582,10 +590,6 @@ namespace bashlessblog
             htmlBuilder.Append(File.ReadAllText(Path.Combine(Config.IncludeDir, ".title.html")));
             htmlBuilder.AppendLine("</div></div></div>");
             htmlBuilder.AppendLine("<div id=\"divbody\"><div class=\"content\">");
-
-            // TODO does this need to be handled? bb.sh line 459
-            // file_url=${filename#./}
-            // file_url =${ file_url %.rebuilt} # Get the correct URL when rebuilding
 
             // blog post
             if (!generateIndex)
@@ -732,22 +736,23 @@ namespace bashlessblog
         }
 
         /// <summary>
-        /// Delete default include files
+        /// Deletes title, header and footer files
         /// </summary>
         private static void DeleteIncludes()
         {
             File.Delete(Path.Combine(Config.IncludeDir, ".title.html"));
-            File.Delete(Path.Combine(Config.IncludeDir, ".header.html"));
-            File.Delete(Path.Combine(Config.IncludeDir, ".footer.html"));
+            File.Delete(Config.HeaderFile);
+            File.Delete(Config.FooterFile);
         }
 
         /// <summary>
-        /// Delete default css files
+        /// Deletes css files specified in css include
         /// </summary>
         private static void DeleteCss()
         {
-            File.Delete(Path.Combine(Config.IncludeDir, "blog.css"));
-            File.Delete(Path.Combine(Config.IncludeDir, "main.css"));
+            foreach (var css in Config.CssInclude)
+                if (File.Exists(css))
+                    File.Delete(css);
         }
 
         /// <summary>
