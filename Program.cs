@@ -51,11 +51,11 @@ try
     // do the easy things (no writes)
     if (firstArg == "list")
     {
-        // TODO
+        doList();
     }
     else if (firstArg == "tags")
     {
-        // TODO
+        doTags();
     }
     else if (firstArg == "help")
     {
@@ -109,6 +109,39 @@ catch (Exception e)
     Console.WriteLine(e.Message);
 }
 
+void doList()
+{
+    var posts = BashlessBlog.GetPostList();
+    if (posts.Count == 0)
+        Console.WriteLine("No posts yet. Use 'bashlessblog new' to create a new draft or 'bashlessblog post [filename]' to post a draft");
+
+    int i = 1;
+    foreach (var post in posts)
+    {
+        // print post num, name, date in a column format
+        Console.WriteLine(string.Format("{0,-5}{1,-55}{2,20}", i, post.Value, post.Key.ToString(BashlessBlog.Config.DateFormat)));
+        i++;
+    }
+}
+
+void doTags()
+{
+    // get a list of all tags and the posts with that tag
+    var allTags = BashlessBlog.PostsWithTags();
+    if (args.Length > 1 && args[1] == "-n")
+    {
+        var tagsByNum = allTags.OrderByDescending(x => x.Value.Count).Select(x => new KeyValuePair<int, string>(x.Value.Count, x.Key)).ToList();
+
+        foreach (var tag in tagsByNum)
+            Console.WriteLine(string.Format("{0,-20}{1,40}", tag.Value, tag.Key));
+    }
+    else
+    {
+        foreach (var tag in allTags)
+            Console.WriteLine(string.Format("{0,-20}{1,40}", tag.Key, tag.Value.Count.ToString()));
+    }
+}
+
 void doNew()
 {
     // get the optional title for the new draft
@@ -157,9 +190,8 @@ void doPost()
 
 void doRebuild()
 {
-    if (args.Length > 1)
-        if (args.Contains("-all"))
-            BashlessBlog.Rebuild(true);
+    if (args.Length > 1 && args[1] == "-all")
+        BashlessBlog.Rebuild(true);
 
     BashlessBlog.Rebuild(false);
 }

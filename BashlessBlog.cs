@@ -328,7 +328,7 @@ namespace bashlessblog
             }
 
             RebuildAllEntries();
-            RebuildTags(null);
+            RebuildTags();
         }
 
         /// <summary>
@@ -343,7 +343,7 @@ namespace bashlessblog
             if (File.Exists(Path.ChangeExtension(postPath, ".md")))
                 File.Delete(Path.ChangeExtension(postPath, ".md"));
 
-            RebuildTags(null);
+            RebuildTags();
         }
 
         /// <summary>
@@ -560,6 +560,63 @@ namespace bashlessblog
         }
 
         /// <summary>
+        /// Gets a dictionary of dates and posts sorted by post date
+        /// </summary>
+        internal static SortedDictionary<DateTime, string> GetPostList()
+        {
+            var returnDict = new SortedDictionary<DateTime, string>();
+
+            // get a sorted list of files in the output directory excluding boilerplate files
+            var files = Directory.GetFiles(Config.OutputDir, "*.html")
+                            .Where(f => !IsBoilerplateFile(f))
+                            .ToList();
+
+            foreach (var file in files)
+            {
+                var postTitle = GetPostTitle(file);
+                var postDate = GetPostDate(file);
+                returnDict.Add(postDate, postTitle);
+            }
+
+            return returnDict;
+        }
+
+        /// <summary>
+        /// Return a dictionary that maps each tag
+        /// to the files that contain the tags
+        /// 
+        /// If tags is null, all tags in all posts are returned
+        /// </summary>
+        internal static SortedDictionary<string, List<string>> PostsWithTags(List<string>? tags = null)
+        {
+            var tagFileMapping = new SortedDictionary<string, List<string>>();
+
+            // get all html files from the output directory that don't start with the tag prefix
+            var fileList = Directory.GetFiles(Config.OutputDir, "*.html");
+            foreach (var file in fileList)
+            {
+                // skip the boilerplate files
+                if (IsBoilerplateFile(file))
+                    continue;
+
+                // get the tags in the file
+                var tagsInPost = TagsInPost(file);
+                foreach (var tag in tagsInPost)
+                {
+                    if (tags == null || tags.Contains(tag))     // if tags is null, get all tags
+                    {
+                        if (tagFileMapping.ContainsKey(tag))
+                            tagFileMapping[tag].Add(file);
+                        else
+                            tagFileMapping.Add(tag, new List<string>() { file });
+                    }
+                }
+            }
+
+            return tagFileMapping;
+        }
+
+        /// <summary>
         /// Creates an HTML page
         /// </summary>
         /// <param name="content">The HTML content for the body of the page</param>
@@ -650,7 +707,7 @@ namespace bashlessblog
         /// or all tags if the tags list is null
         /// Also rebuild the all_tags index page
         /// </summary>
-        private static void RebuildTags(List<string>? tags)
+        private static void RebuildTags(List<string>? tags = null)
         {
             // delete tag files
             var files = Directory.GetFiles(Config.OutputDir, "tag_*.html");
@@ -840,41 +897,6 @@ namespace bashlessblog
                 filepath = Path.Combine(targetDir, new string(asciiTitleStripped)) + $"-{i}" + (useHtml ? ".html" : ".md");
 
             return filepath;
-        }
-
-        /// <summary>
-        /// Return a dictionary that maps each tag
-        /// to the files that contain the tags
-        /// 
-        /// If tags is null, all tags in all posts are returned
-        /// </summary>
-        private static SortedDictionary<string, List<string>> PostsWithTags(List<string>? tags)
-        {
-            var tagFileMapping = new SortedDictionary<string, List<string>>();
-
-            // get all html files from the output directory that don't start with the tag prefix
-            var fileList = Directory.GetFiles(Config.OutputDir, "*.html");
-            foreach (var file in fileList)
-            {
-                // skip the boilerplate files
-                if (IsBoilerplateFile(file))
-                    continue;
-
-                // get the tags in the file
-                var tagsInPost = TagsInPost(file);
-                foreach (var tag in tagsInPost)
-                {
-                    if (tags == null || tags.Contains(tag))     // if tags is null, get all tags
-                    {
-                        if (tagFileMapping.ContainsKey(tag))
-                            tagFileMapping[tag].Add(file);
-                        else
-                            tagFileMapping.Add(tag, new List<string>() { file });
-                    }
-                }
-            }
-
-            return tagFileMapping;
         }
 
         /// <summary>
