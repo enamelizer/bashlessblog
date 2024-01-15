@@ -8,6 +8,8 @@ It is a .net port of the excellent bash script [bashblog](https://github.com/cfe
 
 This project aims to take everything that makes bashblog great and apply it to a different workflow. Namely decoupling the editing and publishing process from a remote server and instead having a local first workflow and publishing the output more like a traditional static site generation workflow. Basically I wanted more freedom in text editors, more compatibility with syncing using git, and more cross platform support.
 
+![Image of blog post](https://github.com/enamelizer/bashlessblog/blob/main/blog.png?raw=true)
+
 ## Getting Started
 
 1. Install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) on your target platform.
