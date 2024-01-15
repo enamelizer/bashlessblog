@@ -16,7 +16,7 @@ This project aims to take everything that makes bashblog great and apply it to a
 2. Create a directory where the blog artifacts will live (config, inputs, outputs, etc.)
 3. Copy the bashlessblog utility to this directory
 4. Run the command `bashlessblog init` to initialize the default blog structure
-5. Edit the `.config` file, the `GlobalUrl` setting is especially important as this defines the base URL for the blog
+5. Edit the `.config` file, the `GlobalUrl` setting is especially important as this defines the base URL for the blog. I also suggest changing the license to something more permissive like a Creative Commons license.
 6. Run the command `bashlessblog new` to create a new draft in the drafts directory
 7. Edit your new post using your favorite text editor
 8. Publish the post using `bashlessblog post drafts\title-on-this-line.md` - don't worry the filename will be updated with the title you supplied when you edited the post
