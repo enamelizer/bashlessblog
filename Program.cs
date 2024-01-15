@@ -109,6 +109,7 @@ void doInit()
         errorAndExit("Error: The .config file already exists in this directory, aborting init");
 
     BashlessBlog.Init();
+    Console.WriteLine("Blog has been initalized, use 'bashlessblog new' to create a new draft");
 }
 
 void doLoadConfig()
@@ -217,6 +218,7 @@ void doRebuild()
         BashlessBlog.Rebuild(true);
 
     BashlessBlog.Rebuild(false);
+    Console.WriteLine("Blog rebuild complete");
 }
 
 void doDelete()
