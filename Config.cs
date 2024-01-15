@@ -162,7 +162,7 @@ namespace bashlessblog
         internal static class Internal
         {
             public static readonly string GlobalSoftwareName = "bashlessblog";
-            public static readonly string GlobalSoftwareVersion = "1.0";
+            public static readonly string GlobalSoftwareVersion = "1.0.0";
 
             // this is the internal/parsed version of DateLocale
             public static CultureInfo DateCulture { get; set; } = CultureInfo.CurrentCulture;
