@@ -267,24 +267,25 @@ void printHelp()
                    Usage: bashlessblog command [option] [title/filename]
                    
                    Commands:
-                       new [-html] [title]     create a new draft in the drafts folder, using markdown
+                       init                    initializes a new blog stucture in the current directory
+
+                       new [-html] [title]     creates a new draft in the drafts folder, using commonmark flavored markdown
                                                '-html' overrides the default behavior and creates an HTML draft
                                                'title' will override the default title with the supplied title, the title must be in quotes
                    
-                       edit [filename]         create a draft from a published post and depublish the post
+                       edit [filename]         creates a draft from a published post and depublishes the post
                    
-                       post [filename]         publishes a draft post to the blog
-                                               if the title of a previously posted entry changes, the filename will change to match
-                                               this operation rebuilds the blog
+                       post [filename]         publishes a draft to the blog
                    
-                       delete [filename]       delete a published the post
+                       delete [filename]       deletes a published post
                    
                        rebuild [-all]          regenerates all the pages and posts, preserving the content of the entries
-                                               '-all' will regenerate the CSS, title, header, and footer files (caution: custom and edited files will be deleted!)
+                                               '-all' will regenerate the CSS, title, header, and footer files
+                                                      (caution: custom and edited files will be deleted!)
                    
-                       list                    list all posts
+                       list                    lists all posts
                    
-                       tags [-n]               list all tags in alphabetical order
+                       tags [-n]               lists all tags in alphabetical order
                                                use '-n' to sort list by number of posts
                    
                    For more information please check the comments and config options in the source code

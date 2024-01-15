@@ -63,7 +63,7 @@ namespace bashlessblog
         // please make sure that no other html file starts with this prefix
         public string PrefixTags { get; private set; } = "tag_";
 
-        // if these files do not exist, defaults are generated
+        // if these files do not exist or are not found, defaults are generated
         public string HeaderFile { get; private set; } = "includes\\.header.html";
         public string FooterFile { get; private set; } = "includes\\.footer.html";
 
@@ -79,7 +79,7 @@ namespace bashlessblog
         public string BodyBeginFileIndex { get; private set; } = String.Empty;
 
         // CSS files to include on every page, f.ex. css_include=('main.css' 'blog.css')
-        // if the file(s) do not exist, they are generated
+        // if the file(s) do not exist or are not found, a default 'blog.css' is generated
         public List<string> CssInclude { get; private set; } = new List<string> { "includes\\blog.css" };
 
         // HTML files to exclude from index, f.ex. post_exclude=('imprint.html 'aboutme.html')
@@ -321,15 +321,6 @@ namespace bashlessblog
             if (String.IsNullOrEmpty(GlobalEmail))
                 warnings.AppendLine("Config Warning: GlobalEmail is empty");
 
-            if (!IncludeListIsValid(CssInclude))
-                warnings.AppendLine("Config Warning: Css file(s) not found, using default 'blog.css'");
-
-            if (!File.Exists(HeaderFile))
-                warnings.AppendLine("Config Warning: Header file not found, using default '.header.html'");
-
-            if (!File.Exists(FooterFile))
-                warnings.AppendLine("Config Warning: Header file not found, using default '.footer.html'");
-
             // errors
             if (String.IsNullOrEmpty(GlobalUrl))
                 errors.AppendLine("Config Error: GlobalUrl cannot be empty");
@@ -341,19 +332,6 @@ namespace bashlessblog
                 throw new Exception(warnings.ToString() + errors.ToString());
 
             return warnings.ToString();
-        }
-
-        // validate an include list
-        private bool IncludeListIsValid(List<string> filePathList)
-        {
-            // if one file in the list is not there return false
-            foreach (var file in filePathList)
-            {
-                if (!File.Exists(file))
-                    return false;
-            }
-
-            return true;
         }
     }
 }

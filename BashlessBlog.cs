@@ -53,7 +53,7 @@ namespace bashlessblog
                 foreach (var path in fileSet)
                 {
                     var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), path);
-                    if (relativePath.StartsWith(Config.BackupDir) || relativePath.StartsWith("backup")) // don't backup the backup
+                    if (relativePath.StartsWith(Config.BackupDir) || relativePath.StartsWith("backup")) // don't backup the backup (TODO: what if a post starts with 'backup')
                         continue;
 
                     archive.CreateEntryFromFile(path, relativePath);
@@ -132,6 +132,10 @@ namespace bashlessblog
                     File.WriteAllText(blogCssPath, blogCssContent);
                 }
             }
+
+            // copy the css files to the output dir
+            foreach (var file in Config.CssInclude)
+                try { File.Copy(file, Path.Combine(Config.OutputDir, Path.GetFileName(file))); } catch { }
         }
 
         /// <summary>
@@ -218,8 +222,7 @@ namespace bashlessblog
             }
 
             // create unique filename
-            var filename = CreateUniqueFilepath(draftsDirectory, title, useHtml);
-            var filePath = Path.Combine(draftsDirectory, filename);
+            var filePath = CreateUniqueFilepath(draftsDirectory, title, useHtml);
             File.WriteAllText(filePath, bodyBuilder.ToString());
 
             return filePath;
