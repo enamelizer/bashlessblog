@@ -320,7 +320,7 @@ namespace bashlessblog
             if (String.IsNullOrEmpty(GlobalEmail))
                 warnings.AppendLine("Config Warning: GlobalEmail is empty");
 
-            if (!ValidateIncludeList(CssInclude))
+            if (!IncludeListIsValid(CssInclude))
                 warnings.AppendLine("Config Warning: Css file(s) not found, using default 'blog.css'");
 
             if (!File.Exists(HeaderFile))
@@ -342,25 +342,17 @@ namespace bashlessblog
             return warnings.ToString();
         }
 
-        // validate and include list
-        private bool ValidateIncludeList(List<string> filePathList)
+        // validate an include list
+        private bool IncludeListIsValid(List<string> filePathList)
         {
-            // no icludes is valid, defaults are used
-            if (filePathList.Count == 0)
-                return true;
-
-            // if one file in the list is
-            var fileFound = false;
+            // if one file in the list is not there return false
             foreach (var file in filePathList)
             {
-                if (File.Exists(file))
-                {
-                    fileFound = true;
-                    break;
-                }
+                if (!File.Exists(file))
+                    return false;
             }
 
-            return fileFound;
+            return true;
         }
     }
 }

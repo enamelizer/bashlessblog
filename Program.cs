@@ -4,29 +4,8 @@ using bashlessblog;
 
 try
 {
-    // Load configuration
-    var configFile = ".config";
-    if (!File.Exists(configFile))
-    {
-        Console.WriteLine("Error: .config does not exist in the current working directory. Please run bashlessblog from the blog directory");
-        return;
-    }
-
-    // load the config
-    try
-    {
-        var warnings = BashlessBlog.LoadAndValidateConfig(configFile);
-        if (!String.IsNullOrEmpty(warnings))
-            Console.WriteLine(warnings);
-    }
-    catch (Exception ex)
-    {
-        // either load or validate config threw an exception
-        Console.WriteLine(ex.Message);
-        return;
-    }
-
     // check args, print help if invalid
+    // init         - create a new blog structure
     // new <title>  - create new draft, title is optional
     // post <title> - post an existing draft, title is required
     // rebuild      - rebuild blog
@@ -40,27 +19,42 @@ try
         return;
     }
 
-    var firstArg = args[0].ToLowerInvariant();
+    var commandList = new List<string>() { "init", "new", "post", "rebuild", "list", "edit", "delete", "tags" };
 
-    if (firstArg != "new" && firstArg != "post" && firstArg != "rebuild" && firstArg != "list" && firstArg != "edit" && firstArg != "delete" && firstArg != "tags")
+    var firstArg = args[0].ToLowerInvariant();
+    if (!commandList.Contains(firstArg))
     {
         printHelp();
         return;
     }
 
+    if(firstArg == "init")
+    {
+        doInit();
+        return;
+    }
+
+    // Load configuration
+    doLoadConfig();
+
     // do the easy things (no writes)
     if (firstArg == "list")
     {
         doList();
+        return;
     }
     else if (firstArg == "tags")
     {
         doTags();
+        return;
     }
     else if (firstArg == "help")
     {
         printHelp();
+        return;
     }
+
+    // do the hard things (blog changes)
 
     // backup the blog
     BashlessBlog.Backup();
@@ -109,6 +103,35 @@ catch (Exception e)
     Console.WriteLine(e.Message);
 }
 
+void doInit()
+{
+    if (File.Exists(".config"))
+        errorAndExit("Error: The .config file already exists in this directory, aborting init");
+
+    BashlessBlog.Init();
+}
+
+void doLoadConfig()
+{
+    var configFile = ".config";
+    if (!File.Exists(configFile))
+        errorAndExit("Error: .config does not exist in the current working directory. Please run bashlessblog from the blog directory or run 'bashlessblog init' to create a new blog");
+
+    // load the config
+    try
+    {
+        var warnings = BashlessBlog.LoadAndValidateConfig(configFile);
+        if (!String.IsNullOrEmpty(warnings))
+            Console.WriteLine(warnings);
+    }
+    catch (Exception ex)
+    {
+        // either load or validate config threw an exception
+        Console.WriteLine(ex.Message);
+        return;
+    }
+}
+
 void doList()
 {
     var posts = BashlessBlog.GetPostList();
@@ -128,7 +151,7 @@ void doTags()
 {
     // get a list of all tags and the posts with that tag
     var allTags = BashlessBlog.PostsWithTags();
-    if (args.Length > 1 && args[1] == "-n")
+    if (args.Length > 1 && args[1].ToLowerInvariant() == "-n")
     {
         var tagsByNum = allTags.OrderByDescending(x => x.Value.Count).Select(x => new KeyValuePair<int, string>(x.Value.Count, x.Key)).ToList();
 
@@ -149,14 +172,14 @@ void doNew()
     var title = String.Empty;
     if (args.Length == 2)       // could either be the -html option or the title
     {
-        if (args[1] == "-html")
+        if (args[1].ToLowerInvariant() == "-html")
             useHtml = true;
         else
             title = args[1];
     }
     else if (args.Length == 3)  // if there are 3 args, expect -html and title
     {
-        if (args[1] != "-html")
+        if (args[1].ToLowerInvariant() != "-html")
             errorAndExit("Error: Invalid arguments");
 
         useHtml = true;
@@ -190,7 +213,7 @@ void doPost()
 
 void doRebuild()
 {
-    if (args.Length > 1 && args[1] == "-all")
+    if (args.Length > 1 && args[1].ToLowerInvariant() == "-all")
         BashlessBlog.Rebuild(true);
 
     BashlessBlog.Rebuild(false);
@@ -255,7 +278,7 @@ void printHelp()
                        delete [filename]       delete a published the post
                    
                        rebuild [-all]          regenerates all the pages and posts, preserving the content of the entries
-                                               '-all' will regernerate the CSS, title, header, and footer files (caution: custom and edited files will be deleted!)
+                                               '-all' will regenerate the CSS, title, header, and footer files (caution: custom and edited files will be deleted!)
                    
                        list                    list all posts
                    

@@ -617,6 +617,34 @@ namespace bashlessblog
         }
 
         /// <summary>
+        /// Initalizes a new blog by writing the directories and .config file
+        /// </summary>
+        internal static void Init()
+        {
+            // if config exists assume the blog is initalized
+            var configFilename = ".config";
+            if (File.Exists(configFilename))
+                return;
+
+            Directory.CreateDirectory(Config.BackupDir);
+            Directory.CreateDirectory(Config.DraftDir);
+            Directory.CreateDirectory(Config.IncludeDir);
+            Directory.CreateDirectory(Config.OutputDir);
+
+            var configString = """
+                GlobalTitle="My fancy blog"
+                GlobalDescription="A blog about turtles and carrots"
+                GlobalUrl="http://example.com/blog"
+                GlobalAuthor="John Smith"
+                GlobalAuthorUrl="http://example.com/JohnSmith"
+                GlobalEmail="john@smith.com"
+                GlobalLicense="All Rights Reserved"
+                """;
+
+            File.WriteAllText(configFilename, configString);
+        }
+
+        /// <summary>
         /// Creates an HTML page
         /// </summary>
         /// <param name="content">The HTML content for the body of the page</param>
