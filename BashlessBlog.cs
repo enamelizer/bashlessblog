@@ -135,7 +135,7 @@ namespace bashlessblog
 
             // copy the css files to the output dir
             foreach (var file in Config.CssInclude)
-                try { File.Copy(file, Path.Combine(Config.OutputDir, Path.GetFileName(file))); } catch { }
+                try { File.Copy(file, Path.Combine(Config.OutputDir, Path.GetFileName(file)), true); } catch { }
         }
 
         /// <summary>
